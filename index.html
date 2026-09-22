@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DOE sécurisation de toiture — ATTILA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{
+  --red:#C0392B;--red-d:#962D22;--ink:#1E2328;--mute:#5E6770;--line:#D5DADF;
+  --bg:#ECEFF1;--card:#FFFFFF;--ok:#38761D;--warn:#E69138;--ko:#CC0000;--blue:#1565C0;
+  --r:10px;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{font-family:Barlow,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:16px;line-height:1.45;padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+button,input,select{font:inherit}
+header.top{background:var(--red);color:#fff;padding:calc(12px + env(safe-area-inset-top,0px)) 16px 0}
+.top-row{display:flex;align-items:center;gap:12px;max-width:1100px;margin:0 auto}
+.top h1{font-family:"Barlow Condensed",Barlow,sans-serif;font-size:22px;margin:0;letter-spacing:.3px;flex:1;line-height:1.1}
+.top h1 small{display:block;font-family:Barlow,sans-serif;font-weight:500;font-size:13px;opacity:.85}
+.btn-ghost{background:transparent;border:1.5px solid rgba(255,255,255,.7);color:#fff;border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer}
+nav.steps{display:flex;gap:4px;overflow-x:auto;max-width:1100px;margin:12px auto 0;scrollbar-width:none}
+nav.steps::-webkit-scrollbar{display:none}
+nav.steps button{flex:1 0 auto;background:transparent;border:0;color:rgba(255,255,255,.75);padding:10px 12px 12px;border-bottom:4px solid transparent;cursor:pointer;font-weight:600;font-size:14px;white-space:nowrap}
+nav.steps button b{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.2);margin-right:6px;font-size:12px}
+nav.steps button.on{color:#fff;border-bottom-color:#fff}
+nav.steps button.on b{background:#fff;color:var(--red)}
+nav.steps button.done b{background:var(--ok);color:#fff}
+main{max-width:1100px;margin:0 auto;padding:16px}
+section.step{display:none}
+section.step.on{display:block}
+.card{background:var(--card);border-radius:var(--r);padding:18px;margin-bottom:14px;border:1px solid var(--line)}
+.card h2{font-family:"Barlow Condensed",Barlow,sans-serif;font-size:22px;margin:0 0 4px;display:flex;align-items:center;gap:10px}
+.card h2 .n{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:8px;background:var(--red);color:#fff;font-size:17px}
+.card h3{font-size:16px;margin:18px 0 8px}
+.lead{color:var(--mute);margin:0 0 14px;font-size:15px}
+label{display:block;font-size:13px;font-weight:600;color:var(--mute)}
+label input,label select{display:block;width:100%;margin-top:4px;padding:11px 12px;border:1.5px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font-size:16px;font-weight:500}
+label input:focus,label select:focus{outline:none;border-color:var(--red);box-shadow:0 0 0 3px rgba(192,57,43,.15)}
+.grid2{display:grid;grid-template-columns:1fr;gap:12px}
+@media(min-width:720px){.grid2{grid-template-columns:1fr 1fr}.full{grid-column:1/-1}}
+.hint{font-size:14px;padding:10px 12px;border-radius:8px;background:#F4F6F7;border-left:4px solid var(--blue);margin-top:12px}
+.hint.warn{border-left-color:var(--warn);background:#FDF4EA}
+.hint.ko{border-left-color:var(--ko);background:#FBEAEA}
+.hint.ok{border-left-color:var(--ok);background:#EDF5EA}
+.ac{position:relative}
+.ac-list{position:absolute;z-index:1000;left:0;right:0;top:100%;background:#fff;border:1.5px solid var(--line);border-radius:8px;margin-top:4px;box-shadow:0 8px 20px rgba(30,35,40,.12);overflow:hidden}
+.ac-list button{display:block;width:100%;text-align:left;background:#fff;border:0;border-bottom:1px solid var(--line);padding:12px;cursor:pointer;font-size:15px}
+.ac-list button:hover,.ac-list button:focus{background:#F4F6F7}
+.row{display:flex;gap:8px;align-items:flex-end}
+.row>label{flex:1}
+.btn{border:0;border-radius:8px;padding:12px 16px;font-weight:700;cursor:pointer;font-size:15px;min-height:46px}
+.btn.red{background:var(--red);color:#fff}
+.btn.red:hover{background:var(--red-d)}
+.btn.line{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+:focus-visible{outline:3px solid #1565C0;outline-offset:2px}
+/* map */
+.tools{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;margin-bottom:8px}
+.tool{flex:0 0 auto;display:flex;align-items:center;gap:8px;border:2px solid var(--line);background:#fff;border-radius:10px;padding:10px 12px;cursor:pointer;font-weight:700;font-size:14px;min-height:48px}
+.tool i{width:16px;height:16px;border-radius:50%;display:inline-block;flex:0 0 16px}
+.tool i.ln{border-radius:3px;height:6px;width:22px;flex-basis:22px}
+.tool.on{border-color:var(--ink);background:var(--ink);color:#fff}
+#map{height:58vh;min-height:340px;border-radius:var(--r);border:1px solid var(--line);background:#cfd6db}
+.draw-bar{display:none;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center}
+.draw-bar.on{display:flex}
+.draw-bar span{font-size:14px;color:var(--mute);flex:1 1 200px}
+.leaflet-tooltip.lbl{background:#fff;border:0;border-radius:4px;font-weight:700;font-size:12px;padding:2px 6px;box-shadow:0 1px 3px rgba(0,0,0,.35)}
+.map-foot{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.map-foot .btn{font-size:14px;min-height:40px;padding:8px 12px}
+.sum{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.sum div{background:#F4F6F7;border-radius:8px;padding:8px 12px;font-size:14px}
+.sum b{font-size:18px;display:block}
+.dev{border:1.5px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;background:#fff}
+.dev.hl{border-color:var(--ink);box-shadow:0 0 0 3px rgba(30,35,40,.12)}
+.dev-h{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.dev-h .chip{width:14px;height:14px;border-radius:50%}
+.dev-h b{font-size:17px}
+.dev-h .len{margin-left:auto;font-weight:700;color:var(--mute)}
+.x{background:none;border:0;color:var(--ko);font-weight:600;cursor:pointer;font-size:13px;padding:6px}
+.empty{color:var(--mute);font-size:15px;padding:12px;border:1.5px dashed var(--line);border-radius:10px;margin:0}
+/* docs */
+.gauge{height:10px;background:#E3E7EA;border-radius:6px;overflow:hidden;margin:6px 0 4px}
+.gauge div{height:100%;background:var(--ok);transition:width .3s}
+.grp{margin-top:18px}
+.grp h3{margin:0 0 8px;display:flex;align-items:center;gap:8px}
+.grp h3 i{width:12px;height:12px;border-radius:50%;display:inline-block}
+.doc{display:grid;grid-template-columns:1fr;gap:10px;border:1.5px solid var(--line);border-left:6px solid var(--ko);border-radius:10px;padding:12px;margin-bottom:8px;background:#fff}
+.doc.ok{border-left-color:var(--ok)}
+.doc.na{border-left-color:#B7BEC4;opacity:.7}
+.doc.opt{border-left-color:var(--warn)}
+@media(min-width:720px){.doc{grid-template-columns:1fr auto}}
+.doc-t{font-weight:700}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 4px}
+.tag{font-size:12px;font-weight:700;padding:3px 8px;border-radius:20px;background:#EEF0F2;color:var(--ink)}
+.tag.FOUR{background:#E3ECF7;color:#0D4A8F}
+.tag.ATTILA{background:#F8E1DE;color:var(--red-d)}
+.tag.CLIENT{background:#E6F0E2;color:#2B5A16}
+.tag.lv{background:#fff;border:1.5px solid currentColor}
+.tag.lv.REG{color:var(--ko)}.tag.lv.CONTRAT{color:#B26A1D}.tag.lv.NORME{color:var(--blue)}.tag.lv.REC{color:var(--mute)}
+.ref{font-size:13px;color:var(--mute)}
+.files{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.file{font-size:13px;background:#EDF5EA;border-radius:6px;padding:4px 8px;display:flex;gap:6px;align-items:center}
+.file button{border:0;background:none;color:var(--ko);cursor:pointer;font-weight:700;padding:0 2px}
+.doc-act{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.btn-file{display:inline-flex;align-items:center;justify-content:center;background:var(--ink);color:#fff;border-radius:8px;padding:10px 14px;font-weight:700;cursor:pointer;min-height:44px;font-size:14px}
+.btn-file input{display:none}
+.na{display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer}
+.na input{width:20px;height:20px;margin:0}
+/* raci */
+.tbl-wrap{overflow-x:auto}
+table.raci{border-collapse:collapse;width:100%;min-width:640px;font-size:14px}
+.raci th,.raci td{border-bottom:1px solid var(--line);padding:9px 8px;text-align:left;vertical-align:top}
+.raci th{background:#F4F6F7;font-size:13px}
+.raci td.c{text-align:center;font-weight:800}
+.raci td.c.R{color:var(--red)}
+.raci td.c.P{color:var(--mute);font-weight:600}
+.raci .rf{font-size:12px;color:var(--mute)}
+.next{display:flex;gap:14px;align-items:center;background:#F4F6F7;border-radius:10px;padding:14px;margin-top:12px}
+.next .d{font-family:"Barlow Condensed",sans-serif;font-size:30px;font-weight:700;color:var(--red);line-height:1}
+.chk{display:flex;gap:10px;align-items:flex-start;font-size:15px;font-weight:500;color:var(--ink);margin-top:12px;cursor:pointer}
+.chk input{width:22px;height:22px;margin:2px 0 0;flex:0 0 22px}
+.src{font-size:13px;color:var(--mute)}
+.src a{color:var(--blue)}
+/* bottom bar */
+.bar{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));z-index:1500}
+.bar-in{max-width:1100px;margin:0 auto;display:flex;gap:10px}
+.bar .btn{flex:1}
+.toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;z-index:3000;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;text-align:center}
+.toast.on{opacity:1}
+.busy{position:fixed;inset:0;background:rgba(30,35,40,.55);display:none;place-items:center;z-index:4000;color:#fff;font-weight:700;font-size:18px;text-align:center;padding:20px}
+.busy.on{display:grid}
+[hidden]{display:none!important}
+nav.steps button.lib{margin-left:auto;border-left:1px solid rgba(255,255,255,.3)}
+.file.lib{background:#E3ECF7}
+.sugg{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--mute)}
+.sugg button{border:1.5px dashed var(--blue);background:#fff;color:#0D4A8F;border-radius:6px;padding:6px 10px;font-weight:600;cursor:pointer;font-size:13px}
+.doc-tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:12px 0 0}
+.doc-tools .chk{margin:0;flex:1 1 280px}
+.lib-fab{margin-top:18px}
+.lib-fab h3{margin:0 0 8px}
+.li{border:1.5px solid var(--line);border-radius:10px;padding:12px;margin-bottom:8px;background:#fff}
+.li-h{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.li-h b{flex:1 1 200px}
+.li .grid2{margin-top:10px}
+.tag.net{background:#1E2328;color:#fff}
+.tag.old{background:#FDF4EA;color:#B26A1D}
+.lib-add{background:#F4F6F7;border-radius:10px;padding:14px;margin-bottom:12px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-row">
+    <h1>DOE sécurisation de toiture<small id="hdrSub">Nouveau chantier</small></h1>
+    <button class="btn-ghost" id="btnNew" type="button">Nouveau chantier</button>
+  </div>
+  <nav class="steps" id="steps" aria-label="Étapes">
+    <button data-go="1" type="button"><b>1</b>Chantier</button>
+    <button data-go="2" type="button"><b>2</b>Projet</button>
+    <button data-go="3" type="button"><b>3</b>Implantation</button>
+    <button data-go="4" type="button"><b>4</b>Documents</button>
+    <button data-go="5" type="button"><b>5</b>Contrôles &amp; remise</button>
+    <button data-go="6" type="button" class="lib"><b>B</b>Bibliothèque fabricants</button>
+  </nav>
+</header>
+
+<main>
+<!-- 1 CHANTIER -->
+<section class="step" data-step="1">
+  <div class="card">
+    <h2><span class="n">1</span>Chantier</h2>
+    <p class="lead">Où se trouve l'ouvrage et pour qui. L'adresse centre la vue aérienne de l'étape 3.</p>
+    <div class="ac">
+      <div class="row">
+        <label>Adresse du chantier<input id="adr" autocomplete="off" placeholder="Ex. 12 rue de l'Industrie, Grigny" data-k="c.adresse"></label>
+        <button class="btn line" id="btnGeo" type="button" title="Utiliser ma position">Ma position</button>
+      </div>
+      <div class="ac-list" id="acList" hidden></div>
+    </div>
+    <div class="grid2" style="margin-top:12px">
+      <label>Client (raison sociale)<input data-k="c.client" placeholder="Ex. Logistique Sud SAS"></label>
+      <label>Site / bâtiment<input data-k="c.site" placeholder="Ex. Entrepôt B, toiture bac acier"></label>
+      <label>Contact client (nom, e-mail ou tél.)<input data-k="c.contact"></label>
+      <label>Agence ATTILA<input data-k="c.agence" placeholder="Ex. PRODEV Rhône-Alpes"></label>
+      <label class="full">Chargé d'affaires / chef de chantier<input data-k="c.charge"></label>
+    </div>
+  </div>
+</section>
+
+<!-- 2 PROJET -->
+<section class="step" data-step="2">
+  <div class="card">
+    <h2><span class="n">2</span>Projet</h2>
+    <p class="lead">Qui conçoit, sur quel support, et quand l'ouvrage est réceptionné.</p>
+    <div class="grid2">
+      <label>Réf. devis / commande<input data-k="p.ref" placeholder="Ex. D-2026-0412"></label>
+      <label>Fournisseur / fabricant<input data-k="p.fournisseur" list="fournList" placeholder="Ex. Ajuva Safety"></label>
+      <datalist id="fournList"><option value="Ajuva Safety"><option value="Vertic"></datalist>
+      <label>Bureau d'études (plans, note de calcul)<input data-k="p.be" placeholder="BE du fournisseur"></label>
+      <label>Support / couverture
+        <select data-k="p.support">
+          <option value="bac_sec">Bac acier sec / panneaux sandwich</option>
+          <option value="bac_etanche">Bac étanché / OSB étanché / membrane</option>
+          <option value="beton">Dalle béton (nue ou étanchée)</option>
+          <option value="zinc">Zinc (volige ou joint debout)</option>
+          <option value="alu">Couverture aluminium joint debout</option>
+          <option value="charpente">Charpente métallique / bois</option>
+          <option value="tuile">Tuiles / ardoises</option>
+          <option value="fibro">Plaques fibres-ciment</option>
+          <option value="autre">Autre</option>
+        </select></label>
+      <label>Début de pose<input type="date" data-k="p.debut"></label>
+      <label>Date de réception<input type="date" data-k="p.reception"></label>
+    </div>
+    <div id="hintSupport" class="hint ko" hidden></div>
+  </div>
+</section>
+
+<!-- 3 IMPLANTATION -->
+<section class="step" data-step="3">
+  <div class="card">
+    <h2><span class="n">3</span>Implantation des dispositifs</h2>
+    <p class="lead">Choisissez un dispositif, puis touchez la vue aérienne. Ligne de vie, garde-corps et cheminement se tracent point par point : les métrés se calculent seuls.</p>
+    <div class="tools" id="tools"></div>
+    <div id="map" role="application" aria-label="Vue aérienne du chantier"></div>
+    <div class="draw-bar" id="drawBar">
+      <span id="drawInfo">Touchez la toiture pour poser les points du tracé.</span>
+      <button class="btn line" id="btnUndo" type="button">Retirer le dernier point</button>
+      <button class="btn red" id="btnEnd" type="button">Terminer le tracé</button>
+    </div>
+    <div class="hint warn" id="tileWarn" hidden>Le fond satellite ne se charge pas (réseau ou hébergement). Importez une vue aérienne : capture Géoportail, photo drone ou plan du bâtiment.</div>
+    <div class="map-foot">
+      <label class="btn-file" style="font-size:14px">Importer une vue aérienne / photo drone<input type="file" accept="image/*" id="imgUp"></label>
+      <button class="btn line" id="btnSat" type="button" hidden>Revenir au fond satellite</button>
+    </div>
+    <div class="sum" id="sum"></div>
+    <div id="devList"></div>
+  </div>
+</section>
+
+<!-- 4 DOCUMENTS -->
+<section class="step" data-step="4">
+  <div class="card">
+    <h2><span class="n">4</span>Pièces du DOE</h2>
+    <p class="lead">La liste se construit à partir des dispositifs posés. Chaque pièce indique qui la produit et sur quoi repose l'exigence.</p>
+    <div><b id="docPct">0 %</b> <span class="src" id="docTxt"></span></div>
+    <div class="gauge"><div id="docGauge" style="width:0"></div></div>
+    <div class="tags" style="margin-top:10px">
+      <span class="tag lv REG">Réglementaire</span><span class="tag lv CONTRAT">Contractuel</span><span class="tag lv NORME">Norme / notice fabricant</span><span class="tag lv REC">Bonne pratique</span>
+    </div>
+    <p class="src">Les références normatives (NF EN 795, NF E85-015/016, NF EN ISO 14122, NF EN 516) sont à confirmer dans leur version en vigueur. Les fiches et notices fabricants mémorisées sont conservées dans la bibliothèque ; les autres fichiers (fiches de pose, photos, PV) restent sur cet appareil jusqu'à la génération du DOE.</p>
+    <div class="doc-tools">
+      <label class="chk"><input type="checkbox" id="memo"> Mémoriser les fiches techniques et notices ajoutées dans la bibliothèque fabricants</label>
+      <button class="btn line" id="btnAuto" type="button">Remplir depuis la bibliothèque</button>
+    </div>
+    <div id="docGroups"></div>
+  </div>
+</section>
+
+<!-- 5 CONTROLES -->
+<section class="step" data-step="5">
+  <div class="card">
+    <h2><span class="n">5</span>Responsabilités et contrôle annuel</h2>
+    <p class="lead">Ce tableau est repris tel quel dans le DOE remis au client.</p>
+    <div class="tbl-wrap">
+      <table class="raci">
+        <thead><tr><th>Étape</th><th>Fournisseur / BE</th><th>Agence ATTILA</th><th>Client</th><th>Appui</th></tr></thead>
+        <tbody id="raciBody"></tbody>
+      </table>
+    </div>
+    <p class="src">R = responsable. P = participe. Fournisseur/BE = conception ; agence = pose ; client (maître d'ouvrage, propriétaire ou exploitant employeur) = exploitation après réception.</p>
+
+    <h3>Contrôle périodique après réception</h3>
+    <div class="grid2">
+      <label>Périodicité retenue
+        <select data-k="p.perio">
+          <option value="12">12 mois (usage courant des notices)</option>
+          <option value="6">6 mois (usage intensif / ambiance corrosive)</option>
+        </select></label>
+      <label>Vérificateur prévu
+        <select data-k="p.verif">
+          <option value="client">Client — organisme ou personne compétente de son choix</option>
+          <option value="agence">Agence ATTILA — contrat de vérification</option>
+          <option value="fabricant">Fabricant / installateur agréé du fabricant</option>
+          <option value="adef">À définir par le client</option>
+        </select></label>
+    </div>
+    <label class="chk"><input type="checkbox" data-k="p.forme"> Un technicien de l'agence est formé par le fabricant à la vérification des dispositifs posés</label>
+    <div class="next"><div><div class="src">Première vérification à planifier</div><div class="d" id="nextDate">—</div></div><div class="src" id="nextTxt">Renseignez la date de réception à l'étape 2.</div></div>
+    <div class="hint ko" id="hintVerif" hidden>Vérification par l'agence sans technicien formé : non couvert par l'assurance en cas d'accident. Choisissez un autre vérificateur ou formez un technicien avant de signer le contrat.</div>
+    <div class="hint ok" id="hintOffre" hidden>Contrat de vérification annuelle proposable au client : récurrence de chiffre d'affaires et visite annuelle du site.</div>
+
+    <h3>Remise du DOE</h3>
+    <div id="finalCheck"></div>
+    <button class="btn red" id="btnPdf" type="button" style="width:100%;margin-top:10px">Générer le DOE (PDF avec annexes)</button>
+    <p class="src" style="margin-top:14px">Textes cités : <a href="https://code.travail.gouv.fr/code-du-travail/r4211-3" target="_blank" rel="noopener">C. trav. R4211-3 (DMLT)</a> ; <a href="https://code.travail.gouv.fr/code-du-travail/r4224-17" target="_blank" rel="noopener">C. trav. R4224-17 (entretien et vérification)</a> ; <a href="https://www.code-commande-publique.com/ccag-travaux-article-40" target="_blank" rel="noopener">CCAG Travaux 2021 art. 40</a> ; <a href="https://www.inrs.fr/publications/juridique/focus-juridiques/focus-juridique-controle-periodiques-equipements-obligations-employeur.html" target="_blank" rel="noopener">INRS — contrôles périodiques</a>.</p>
+  </div>
+</section>
+<!-- 6 BIBLIOTHEQUE -->
+<section class="step" data-step="6">
+  <div class="card">
+    <h2><span class="n">B</span>Bibliothèque fabricants</h2>
+    <p class="lead">Fiches techniques, déclarations de conformité et notices : enregistrées une fois, proposées automatiquement sur chaque DOE. Les documents « Réseau QHSE » sont publiés par le service QHSE pour toutes les agences ; les autres sont conservés sur cet appareil.</p>
+    <div class="lib-add">
+      <div class="grid2">
+        <label>Fabricant<input id="lfFab" list="fournList" placeholder="Ex. Ajuva Safety"></label>
+        <label class="full">Produit du catalogue (pré-remplit les champs)<select id="lfProd"></select></label>
+        <label>Dispositif
+          <select id="lfType"></select></label>
+        <label>Type de document
+          <select id="lfKind"></select></label>
+        <label>Modèle / gamme<input id="lfMod" placeholder="Ex. ligne de vie câble inox"></label>
+        <label>Version / indice<input id="lfVer" placeholder="Ex. rév. C"></label>
+        <label>Date du document<input type="date" id="lfDate"></label>
+      </div>
+      <label class="btn-file" style="margin-top:12px">Ajouter un document (PDF ou image)<input type="file" id="lfFile" multiple accept="application/pdf,image/*"></label>
+    </div>
+    <div class="row">
+      <label>Rechercher<input id="libQ" placeholder="Fabricant, modèle, dispositif…"></label>
+    </div>
+    <div class="map-foot">
+      <button class="btn line" id="btnExport" type="button">Exporter la bibliothèque</button>
+      <label class="btn-file" style="font-size:14px">Importer une bibliothèque<input type="file" id="libImport" accept=".json,application/json"></label>
+    </div>
+    <p class="src">Pour publier sur tout le réseau : exporter, renommer le fichier en <b>bibliotheque.json</b> et le déposer à côté de l'app sur GitHub Pages.</p>
+    <div id="libList"></div>
+  </div>
+</section>
+</main>
+
+<div class="bar"><div class="bar-in">
+  <button class="btn line" id="btnPrev" type="button">Précédent</button>
+  <button class="btn red" id="btnNext" type="button">Suivant</button>
+</div></div>
+<div class="toast" id="toast" role="status"></div>
+<div class="busy" id="busy"><div id="busyTxt">Assemblage du DOE…</div></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script>
+/* ============ RÉFÉRENTIEL ============ */
+const TYPES={
+  ancrage:{label:"Point d'ancrage",short:'ANC',color:'#1565C0',geom:'point',norme:'NF EN 795 type A'},
+  ligne:{label:'Ligne de vie',short:'LV',color:'#C0392B',geom:'line',norme:'NF EN 795 type C'},
+  gardecorps:{label:'Garde-corps permanent',short:'GC',color:'#6A1B9A',geom:'line',norme:'NF E85-015 / NF EN ISO 14122-3'},
+  cheminement:{label:'Cheminement permanent',short:'CH',color:'#00897B',geom:'line',norme:'NF EN 516 / NF EN ISO 14122-2'},
+  crinoline:{label:'Échelle à crinoline',short:'EC',color:'#F9A825',geom:'point',norme:'NF E85-016 / NF EN ISO 14122-4'}
+};
+/* ============ CATALOGUE FABRICANTS ============ */
+const SUPPORTS={bac_sec:'Bac acier sec / panneaux sandwich',bac_etanche:'Bac étanché / OSB étanché / membrane',beton:'Dalle béton',zinc:'Zinc',alu:'Aluminium joint debout',charpente:'Charpente métallique / bois',tuile:'Tuiles / ardoises',fibro:'Fibres-ciment',autre:'Autre'};
+const AJ='https://ajuva-safety.com/files/',AP='https://ajuva-safety.com/fr/nos-produits/',AF='Ajuva Safety';
+const AJ_DOC='https://ajuva-safety.com/fr/la-documentation-dediee-au-traitement-22';
+// Relevé sur ajuva-safety.com le 22/09/2026. fiche = PDF public ; page = page produit (fiche non relevée si fiche:null).
+const CATALOG=[
+ {id:'aj-lv-ecovie-std',fab:AF,dtype:'ligne',nom:'Ligne de vie ECOVIE sur potelet standard',norme:'EN 795 classe C',sup:['beton','charpente'],fiche:AJ+'02_Ajuva_fiche_LV_EcovieStandards_2023_V1.pdf',page:AP+'type/ligne-de-vie/lignes-de-vie-a-sceller-1',desc:'Câble avec passage des supports intermédiaires au mousqueton.'},
+ {id:'aj-lv-ecofast-std',fab:AF,dtype:'ligne',nom:'Ligne de vie ECO-FAST sur potelet standard',norme:'EN 795 classe C',sup:['beton','charpente'],fiche:AJ+'03_Ajuva_fiche_LV_EcofastStandards_2023_V1.pdf',page:AP+'type/ligne-de-vie/lignes-de-vie-a-crapauter-8',desc:'Chariot franchissant intermédiaires et angles sans se rapprocher du câble.'},
+ {id:'aj-lv-ecovie-flex',fab:AF,dtype:'ligne',nom:'Ligne de vie ECOVIE sur potelet ECO-FLEX',norme:'EN 795 classe C',sup:['bac_sec','bac_etanche','zinc'],fiche:AJ+'04_Ajuva_fiche_LV_EcovieEcoflex_2023_V1.pdf',page:AP+'type/ligne-de-vie/lignes-de-vie-sur-bac-sec-10',desc:'Potelet à absorbeur intégré, pose sans découpe du complexe de couverture.'},
+ {id:'aj-lv-ecofast-flex',fab:AF,dtype:'ligne',nom:'Ligne de vie ECO-FAST sur potelet ECO-FLEX',norme:'EN 795 classe C',sup:['bac_sec','bac_etanche','zinc'],fiche:AJ+'05_Ajuva_fiche_LV_EcofastEcoflex_2023_V1.pdf',page:AP+'type/ligne-de-vie/lignes-de-vie-sur-bac-etanche-13',desc:'Chariot ECO-FAST + potelets à absorbeur intégré.'},
+ {id:'aj-lv-ecorail',fab:AF,dtype:'ligne',nom:'Rail de sécurité ECO-RAIL horizontal',norme:'EN 795 classe D',sup:['tous'],fiche:AJ+'09_Ajuva_fiche_EcoRail_2023_V1.pdf',page:AP+'type/ligne-de-vie/rail-de-securite-horizontal-22',desc:'Rail rigide alu, sur toiture, en façade ou en sous-face.'},
+ {id:'aj-lv-fibro',fab:AF,dtype:'ligne',nom:'Ligne de vie sur fibrociment',norme:'EN 795 classe C',sup:['fibro'],fiche:null,page:AP+'type/ligne-de-vie/lignes-de-vie-sur-fibrociment-21',desc:'Fiche non relevée : voir la page produit.'},
+ {id:'aj-lv-alu',fab:AF,dtype:'ligne',nom:'Ligne de vie sur aluminium à joint debout',norme:'EN 795 classe C',sup:['alu'],fiche:null,page:AP+'type/ligne-de-vie/lignes-de-vie-sur-aluminium-a-joint-debout-19',desc:'Fiche non relevée : voir la page produit.'},
+ {id:'aj-anc-ecofix1',fab:AF,dtype:'ancrage',nom:'Platine ECOFIX I (inox, à sceller)',norme:'EN 795 classe A',sup:['beton'],fiche:AJ+'10_Ajuva_fiche_AncragesFixes_2023_V1.pdf',page:AP+'grid/ligne-de-vie/platine-d-ancrage-a-sceller-25',desc:'Inox électropoli, 1 scellement, se déforme pour absorber.'},
+ {id:'aj-anc-ecofix2',fab:AF,dtype:'ancrage',nom:'Platine ECOFIX II (inox, à sceller)',norme:'EN 795 classe A',sup:['beton'],fiche:AJ+'10_Ajuva_fiche_AncragesFixes_2023_V1.pdf',page:AP+'grid/ligne-de-vie/platine-d-ancrage-a-sceller-25',desc:'Inox électropoli, 2 scellements.'},
+ {id:'aj-anc-ecofixalu',fab:AF,dtype:'ancrage',nom:'Platine ECOFIX ALU (à sceller)',norme:'EN 795 classe A',sup:['beton'],fiche:AJ+'10_Ajuva_fiche_AncragesFixes_2023_V1.pdf',page:AP+'grid/ligne-de-vie/platine-d-ancrage-a-sceller-25',desc:'Alliage aluminium moulé, 2 scellements.'},
+ {id:'aj-anc-potstd',fab:AF,dtype:'ancrage',nom:"Potelet d'ancrage standard à sceller",norme:'EN 795 classe A',sup:['beton'],fiche:AJ+'10_Ajuva_fiche_AncragesFixes_2023_V1.pdf',page:AP+'grid/ligne-de-vie/potelet-a-sceller-26',desc:"Acier galvanisé, collerette pour relevé d'étanchéité (DTU)."},
+ {id:'aj-anc-omega',fab:AF,dtype:'ancrage',nom:'ECOFIX BAC OMEGA (sur pannes)',norme:'EN 795 classe A',sup:['bac_sec','fibro'],fiche:AJ+'10_Ajuva_fiche_AncragesFixes_AncragesDissipateurAbsorbeur_2023_V1.pdf',page:AP+'grid/ligne-de-vie/point-d-ancrage-34',desc:"Inox thermolaqué + dissipateur d'énergie, fixé sur pannes."},
+ {id:'aj-anc-ecofirst-bac',fab:AF,dtype:'ancrage',nom:'ECOFIRST bac sec / panneaux sandwich',norme:'EN 795 classe A',sup:['bac_sec'],fiche:AJ+'10_Ajuva_fiche_AncragesFixes_AncragesDissipateurAbsorbeur_2023_V1.pdf',page:AP+'grid/ligne-de-vie/point-d-ancrage-34',desc:'Plaquette rotative 360°, vis autoperceuses, bac ≥ 0,50 mm, ondes 250/333 mm.'},
+ {id:'aj-anc-ecocroch',fab:AF,dtype:'ancrage',nom:'ECO-CROCH (crochet sur bac sec)',norme:'EN 517',sup:['bac_sec'],fiche:AJ+'10_Ajuva_fiche_AncragesFixes_AncragesDissipateurAbsorbeur_2023_V1.pdf',page:AP+'grid/ligne-de-vie/point-d-ancrage-34',desc:'20 vis autoperceuses, étanchéité par rondelles et bandes EPDM.'},
+ {id:'aj-anc-ecoflex-bac',fab:AF,dtype:'ancrage',nom:'Potelet ECOFLEX bac sec / panneaux sandwich',norme:'EN 795 classe A',sup:['bac_sec'],fiche:AJ+'11_Ajuva_fiche_AncragesDissipateurAbsorbeur_2023_V1.pdf',page:AP+'grid/ligne-de-vie/potelet-d-ancrage-35',desc:'Potelet H250 à absorbeur intégré.'},
+ {id:'aj-anc-ecofirst-zinc',fab:AF,dtype:'ancrage',nom:'ECOFIRST zinc volige',norme:'EN 795 classe A',sup:['zinc'],fiche:AJ+'11_Ajuva_fiche_AncragesDissipateurAbsorbeur_2023_V1.pdf',page:AP+'grid/ligne-de-vie/point-d-ancrage-37',desc:'4 chevilles à bascule, volige ≥ 12 mm.'},
+ {id:'aj-anc-ecofirst-jd',fab:AF,dtype:'ancrage',nom:'ECOFIRST zinc joint debout',norme:'EN 795 classe A',sup:['zinc'],fiche:AJ+'11_Ajuva_fiche_AncragesDissipateurAbsorbeur_2023_V1.pdf',page:AP+'grid/ligne-de-vie/point-d-ancrage-37',desc:'4 mâchoires, fabrication selon entraxe.'},
+ {id:'aj-anc-etanche',fab:AF,dtype:'ancrage',nom:"Potelet d'ancrage bac étanché / OSB",norme:'EN 795 classe A',sup:['bac_etanche'],fiche:null,page:AP+'grid/ligne-de-vie/potelet-d-ancrage-36',desc:'Fiche non relevée : voir la page produit.'},
+ {id:'aj-anc-alu',fab:AF,dtype:'ancrage',nom:"Point / potelet d'ancrage aluminium joint debout",norme:'EN 795 classe A',sup:['alu'],fiche:null,page:AP+'grid/ligne-de-vie/point-d-ancrage-39',desc:'Fiche non relevée : voir la page produit.'},
+ {id:'aj-anc-fibro',fab:AF,dtype:'ancrage',nom:"Platine d'ancrage fibrociment",norme:'EN 795 classe A',sup:['fibro'],fiche:null,page:AP+'grid/ligne-de-vie/platine-d-ancrage-41',desc:'Fiche non relevée : voir la page produit.'},
+ {id:'aj-anc-bois',fab:AF,dtype:'ancrage',nom:"Platine / potelet d'ancrage charpente bois",norme:'EN 795 classe A',sup:['charpente'],fiche:null,page:AP+'grid/ligne-de-vie/platine-d-ancrage-27',desc:'Fiche non relevée : voir la page produit.'},
+ {id:'aj-anc-metal',fab:AF,dtype:'ancrage',nom:"Potelet / platine à brider ou crapauter (charpente métallique)",norme:'EN 795 classe A',sup:['charpente'],fiche:null,page:AP+'grid/ligne-de-vie/potelet-a-brider-metallique-30',desc:'Fiche non relevée : voir la page produit.'},
+ {id:'aj-gc-ecoline-dessus',fab:AF,dtype:'gardecorps',nom:"Garde-corps ECO-LINE fixe alu, sur dessus d'acrotère",norme:'NF E85-015 (2019)',sup:['beton','bac_etanche'],fiche:AJ+'15_Ajuva_fiche_GC_Ecoline_T22_2023_V1.pdf',page:AP+'type/ligne-de-vie/fixation-sur-dessus-d-acrotere-43',desc:'Droit ou incliné 22°, avec ou sans acrotère.'},
+ {id:'aj-gc-ecoline-applique',fab:AF,dtype:'gardecorps',nom:"Garde-corps ECO-LINE fixe alu, en applique d'acrotère",norme:'NF E85-015',sup:['beton','bac_etanche'],fiche:null,page:AP+'type/ligne-de-vie/fixation-en-applique-d-acrotere-44',desc:'Fiche non relevée : voir la page produit.'},
+ {id:'aj-gc-ecoline-platinez',fab:AF,dtype:'gardecorps',nom:'Garde-corps ECO-LINE fixe alu, platine Z sous couvertine',norme:'NF E85-015',sup:['beton','bac_etanche'],fiche:null,page:AP+'type/ligne-de-vie/fixation-en-platine-z-sous-couvertine-45',desc:'Fiche non relevée : voir la page produit.'},
+ {id:'aj-gc-ecoline-couv',fab:AF,dtype:'gardecorps',nom:'Garde-corps ECO-LINE fixe sur couverture (bac, zinc, joint debout)',norme:'NF E85-015',sup:['bac_sec','bac_etanche','zinc','alu'],fiche:null,page:AP+'type/ligne-de-vie/fixation-sur-bac-sec-84',desc:'Fiche non relevée : voir la page produit.'},
+ {id:'aj-gc-ecostable',fab:AF,dtype:'gardecorps',nom:'Garde-corps autoportant ECO-STABLE T19 alu (droit)',norme:'NF E85-015 (2019)',sup:['beton','bac_etanche'],fiche:AJ+'16_Ajuva_fiche_GC_Ecostable_T19_2023_V1.pdf',page:AP+'type/ligne-de-vie/autoportant-droit-55',desc:"Lesté sans intervention sur l'étanchéité. Autoportant admis si pas de réfection d'étanchéité ou fixation impossible (NF E85-015 2019)."},
+ {id:'aj-gc-ecostable-incl',fab:AF,dtype:'gardecorps',nom:'Garde-corps autoportant incliné',norme:'NF E85-015',sup:['beton','bac_etanche'],fiche:null,page:AP+'type/ligne-de-vie/autoportant-incline-56',desc:'Fiche non relevée : voir la page produit.'},
+ {id:'aj-gc-rabattable',fab:AF,dtype:'gardecorps',nom:'Garde-corps ECO-LINE alu rabattable (fixe)',norme:'NF E85-015',sup:['beton','bac_etanche'],fiche:AJ+'17_Ajuva_fiche_GC_Ecoline_T22_rabattable_2023_V1.pdf',page:AP+'grid-2/ligne-de-vie/fixe-rabattable-80',desc:'Se rabat à l\'horizontale après intervention (sites à contrainte esthétique).'},
+ {id:'aj-gc-dome',fab:AF,dtype:'gardecorps',nom:'Garde-corps de lanterneau ECOLINE DÔME',norme:'NF E85-015',sup:['beton','bac_etanche'],fiche:AJ+'22_Ajuva_fiche_EcolineDome_2023_V1.pdf',page:AP+'type/ligne-de-vie/garde-corps-pour-lanterneaux-67',desc:"Lesté autour des lanterneaux, sans intervention sur l'étanchéité."},
+ {id:'aj-ch-passerelle',fab:AF,dtype:'cheminement',nom:'Passerelle / plateforme sur mesure',norme:'NF EN ISO 14122-2, NF E85-015',sup:['tous'],fiche:AJ+'29_Ajuva_fiche_Sautdeloup_Passerelle_2021.pdf',page:AP+'type/ligne-de-vie/passerelle-74',desc:'Acier galva ou alu, fixation adaptée au support (zinc, bac, étanché, fibro, charpente).'},
+ {id:'aj-ch-sautdeloup',fab:AF,dtype:'cheminement',nom:'Saut de loup',norme:'NF EN ISO 14122',sup:['tous'],fiche:AJ+'29_Ajuva_fiche_Sautdeloup_Passerelle_2021.pdf',page:AP+'type/ligne-de-vie/saut-de-loup-73',desc:'Franchissement de dénivelé entre deux niveaux de toiture.'},
+ {id:'aj-ch-franchissement',fab:AF,dtype:'cheminement',nom:'Échelle de franchissement alu',norme:'NF E85-016',sup:['tous'],fiche:AJ+'25_Ajuva_fiche_EchelleCrinoline_2023_V1.pdf',page:AP+'type/ligne-de-vie/echelle-de-franchissement-72',desc:'Passage de murs coupe-feu, murets, gaines ; fixe ou autoportante.'},
+ {id:'aj-ec-crinoline',fab:AF,dtype:'crinoline',nom:'Échelle à crinoline alu',norme:'NF E85-016, EN ISO 14122-4',sup:['tous'],fiche:AJ+'25_Ajuva_fiche_EchelleCrinoline_2023_V1.pdf',page:AP+'type/ligne-de-vie/echelle-a-crinoline-70',desc:"Modules standards, options passage d'acrotère et condamnation."},
+ {id:'aj-ec-simple',fab:AF,dtype:'crinoline',nom:'Échelle simple / dans gaine',norme:'NF E85-016',sup:['tous'],fiche:null,page:AP+'type/ligne-de-vie/echelle-simple-68',desc:'Fiche non relevée : voir la page produit.'},
+ {id:'aj-ec-verticable',fab:AF,dtype:'crinoline',nom:'Antichute vertical à câble ECO VERTICÂBLE',norme:'voir attestation fabricant',sup:['tous'],fiche:AJ+'Fiche-ECO-Verticable-Attest-Conformite-AJUVA.pdf',page:AP+'type/ligne-de-vie/antichute-vertical-a-cable-24',desc:'Chariot antichute sur câble, pour échelles et structures verticales.'}
+];
+const catFabs=()=>[...new Set(CATALOG.map(c=>c.fab))];
+const catOf=(fab,dt)=>CATALOG.filter(c=>c.dtype===dt&&norm(c.fab)&&(norm(fab).includes('ajuva')?c.fab===AF:norm(c.fab)===norm(fab)));
+const compat=c=>c.sup.includes('tous')||c.sup.includes(S.p.support);
+const catById=id=>CATALOG.find(c=>c.id===id);
+const WHO={FOUR:'Fournisseur / BE',ATTILA:'Agence ATTILA',CLIENT:'Client'};
+const LVL={REG:'Réglementaire',CONTRAT:'Contractuel',NORME:'Norme / notice',REC:'Bonne pratique'};
+const D=(id,label,who,level,ref,opt)=>({id,label,who,level,ref,opt:!!opt});
+const DOCS={
+  common:[
+    D('c_plan',"Plan de récolement (implantation conforme à l'exécuté)",['FOUR','ATTILA'],'CONTRAT',"CCAG Travaux 2021 art. 40.2 en public ; contrat en privé. Établi par le BE, écarts de pose reportés par l'agence"),
+    D('c_pv','PV de réception signé par le client',['ATTILA','CLIENT'],'CONTRAT','C. civ. art. 1792-6 : la réception fait courir les garanties'),
+    D('c_attest','Attestation de bonne installation (pose conforme au plan et aux notices)',['ATTILA'],'NORME','Exigée par les notices fabricants EN 795 ; modèle fournisseur'),
+    D('c_photos','Reportage photo : avant, fixations avant recouvrement, après',['ATTILA'],'REC','Preuve de pose conforme en cas de litige ou d\'accident'),
+    D('c_registre','Fiche de vérification périodique initialisée (date de la 1re vérification)',['ATTILA','CLIENT'],'REG','C. trav. R4224-17 : vérifications consignées dans un dossier annexé au DMLT'),
+    D('c_assur',"Attestation d'assurance décennale de l'agence",['ATTILA'],'CONTRAT','C. assur. L241-1 ; à joindre si le contrat le demande',true)
+  ],
+  ancrage:[
+    D('a_conf','Fiche technique et déclaration de conformité EN 795',['FOUR'],'NORME','NF EN 795:2012'),
+    D('a_calc','Note de calcul : justification de la tenue du support',['FOUR'],'NORME','Notice fabricant (installation vérifiée par calcul ou essai) ; R 430 CNAM'),
+    D('a_notice',"Notice d'installation, d'utilisation et d'entretien",['FOUR'],'CONTRAT','CCAG 2021 art. 40.2 : notices et prescriptions de maintenance'),
+    D('a_pose','Fiche de pose : fixations, couples de serrage, photos',['ATTILA'],'NORME','Documentation d\'installation EN 795'),
+    D('a_essai',"PV d'essais d'arrachement (si support non justifié par calcul)",['ATTILA','FOUR'],'NORME','Selon note de calcul et notice',true),
+    D('a_plaque',"Plaque signalétique posée à l'accès (photo)",['ATTILA'],'NORME','Notice fabricant EN 795')
+  ],
+  ligne:[
+    D('l_conf','Fiche technique et déclaration de conformité EN 795',['FOUR'],'NORME','NF EN 795:2012 ; CEN/TS 16415 si plusieurs utilisateurs'),
+    D('l_calc',"Note de calcul : portées, flèche, tirant d'air, nombre d'utilisateurs",['FOUR'],'NORME','Notice fabricant ; R 430 CNAM'),
+    D('l_notice',"Notice d'installation, d'utilisation et d'entretien",['FOUR'],'CONTRAT','CCAG 2021 art. 40.2'),
+    D('l_pose','Fiche de pose : prétension, absorbeur, fixations, photos',['ATTILA'],'NORME','Documentation d\'installation EN 795'),
+    D('l_essai',"PV d'essais d'arrachement (si support non justifié par calcul)",['ATTILA','FOUR'],'NORME','Selon note de calcul et notice',true),
+    D('l_plaque',"Plaque signalétique à l'accès : nb d'utilisateurs, date de vérification",['ATTILA'],'NORME','Notice fabricant EN 795')
+  ],
+  gardecorps:[
+    D('g_conf',"Fiche technique et PV d'essais du garde-corps",['FOUR'],'NORME','NF E85-015 / NF EN ISO 14122-3 (à confirmer selon produit)'),
+    D('g_calc','Note de calcul : lestage au vent ou fixation au support',['FOUR'],'NORME','Notice fabricant'),
+    D('g_notice',"Notice de montage et d'entretien",['FOUR'],'CONTRAT','CCAG 2021 art. 40.2'),
+    D('g_pose',"Fiche de pose : contrepoids, continuité, retours d'extrémité, photos",['ATTILA'],'NORME','Notice fabricant')
+  ],
+  cheminement:[
+    D('h_conf','Fiche technique du cheminement (passerelle, plans de marche)',['FOUR'],'NORME','NF EN 516 ou NF EN ISO 14122-2 selon produit'),
+    D('h_compat',"Compatibilité avec la couverture / l'étanchéité",['FOUR','ATTILA'],'REC','Avis du fabricant de l\'étanchéité ou du bac'),
+    D('h_notice',"Notice de montage et d'entretien",['FOUR'],'CONTRAT','CCAG 2021 art. 40.2'),
+    D('h_pose','Fiche de pose et photos',['ATTILA'],'NORME','Notice fabricant')
+  ],
+  crinoline:[
+    D('e_conf','Fiche technique et conformité de l\'échelle à crinoline',['FOUR'],'NORME','NF E85-016 / NF EN ISO 14122-4 (à confirmer selon produit)'),
+    D('e_calc','Plan de fixation et justification des ancrages au support',['FOUR'],'NORME','Notice fabricant'),
+    D('e_notice',"Notice de montage et d'entretien",['FOUR'],'CONTRAT','CCAG 2021 art. 40.2'),
+    D('e_pose','Fiche de pose : chevilles, portillon ou condamnation, photos',['ATTILA'],'NORME','Notice fabricant')
+  ]
+};
+const RACI=[
+  ['Diagnostic terrain, métrés, relevé du support','P','R','P','Visite technique'],
+  ['Conception : plan, note de calcul, choix produits','R','P','','EN 795 ; R 430'],
+  ['Fourniture de produits conformes, notices, déclarations','R','','','Marquage, notices'],
+  ['Pose conforme au plan et aux notices','','R','','Notice fabricant'],
+  ['Fiche de pose, photos, essais éventuels, plaque','P','R','','Doc. d\'installation'],
+  ['Assemblage et remise du DOE','P','R','','Livrable agence'],
+  ['Réception des travaux','','P','R','C. civ. 1792-6'],
+  ['Intégration au dossier de maintenance (DMLT)','','','R','C. trav. R4211-3'],
+  ['Vérification périodique et registre','','P','R','C. trav. R4224-17'],
+  ['Consignes, formation et EPI des intervenants','','','R','Employeur des intervenants']
+];
+
+/* ============ ÉTAT ============ */
+const KEY='attila_doe_securisation_v1';
+const fresh=()=>({step:1,c:{adresse:'',lat:null,lng:null,client:'',site:'',contact:'',agence:'',charge:''},
+  p:{ref:'',fournisseur:'Ajuva Safety',be:'',support:'bac_sec',debut:'',reception:'',perio:'12',verif:'client',forme:false},
+  mode:'map',img:null,dev:[],na:{},cnt:{},links:{},memo:true});
+let S; try{S=JSON.parse(localStorage.getItem(KEY))||fresh()}catch(e){S=fresh()}
+S.links=S.links||{};if(/^juva$/i.test(S.p.fournisseur||''))S.p.fournisseur='Ajuva Safety';if(S.p.support==='bac')S.p.support='bac_sec';if(S.memo===undefined)S.memo=true;
+const FILES={}; // docId -> [{name,kind,bytes}]
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const getK=k=>k.split('.').reduce((o,x)=>o?.[x],S);
+const setK=(k,v)=>{const a=k.split('.');let o=S;a.slice(0,-1).forEach(x=>o=o[x]);o[a.at(-1)]=v};
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),2600)}
+const fmtD=d=>d?new Date(d+'T12:00:00').toLocaleDateString('fr-FR'):'—';
+
+/* ============ NAVIGATION ============ */
+function go(n){
+  n=Math.max(1,Math.min(6,n));S.step=n;save();
+  $$('section.step').forEach(s=>s.classList.toggle('on',+s.dataset.step===n));
+  $$('#steps button').forEach(b=>{const k=+b.dataset.go;b.classList.toggle('on',k===n);b.classList.toggle('done',k<n)});
+  $('#btnPrev').disabled=n===1;
+  $('#btnNext').hidden=n>=5;
+  if(n===3){if(!map)initMap();setTimeout(()=>map&&map.invalidateSize(),60)}
+  if(n===4)renderDocs();
+  if(n===5)renderFinal();
+  if(n===6)renderLib();
+  window.scrollTo({top:0});
+}
+$('#steps').addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(b)go(+b.dataset.go)});
+$('#btnPrev').onclick=()=>go(S.step-1);
+$('#btnNext').onclick=()=>go(S.step+1);
+$('#btnNew').onclick=()=>{if(!confirm('Effacer ce chantier et en démarrer un nouveau ?'))return;S=fresh();for(const k in FILES)delete FILES[k];save();fillFields();if(map){map.remove();map=null}renderDevList();go(1)};
+
+/* ============ CHAMPS ============ */
+function fillFields(){
+  $$('[data-k]').forEach(el=>{const v=getK(el.dataset.k);if(el.type==='checkbox')el.checked=!!v;else el.value=v??''});
+  refreshHints();
+}
+document.addEventListener('input',onField);document.addEventListener('change',onField);
+function onField(e){
+  const el=e.target;
+  if(el.dataset.k){setK(el.dataset.k,el.type==='checkbox'?el.checked:el.value);save();refreshHints();if(S.step===5)renderFinal()}
+  if(el.dataset.dev&&e.type==='input'){const d=S.dev.find(x=>x.id===el.dataset.dev);if(d){d[el.dataset.f]=el.value;save()}}
+  if(el.dataset.dev&&el.dataset.f==='fab'&&e.type==='change')renderDevList();
+  if(el.dataset.prod&&e.type==='change'){const d=S.dev.find(x=>x.id===el.dataset.prod),c=catById(el.value);if(d){d.prod=el.value||null;if(c){d.ref=c.nom;d.fab=c.fab}save();renderDevList()}}
+  if(el.dataset.k==='p.support'&&S.dev.length)renderDevList();
+}
+function refreshHints(){
+  $('#hdrSub').textContent=[S.c.client,S.p.ref].filter(Boolean).join(' — ')||'Nouveau chantier';
+  $('#hintSupport').hidden=S.p.support!=='fibro';
+  $('#hintSupport').innerHTML="<b>Fibres-ciment :</b> présomption d'amiante. Repérage avant travaux (RAAT) et mode opératoire SS4 avant tout perçage ou fixation.";
+}
+
+/* ============ ADRESSE ============ */
+let acT;
+$('#adr').addEventListener('input',e=>{clearTimeout(acT);const q=e.target.value.trim();if(q.length<4){$('#acList').hidden=true;return}acT=setTimeout(()=>geocode(q),300)});
+async function geocode(q){
+  const urls=[`https://data.geopf.fr/geocodage/search?q=${encodeURIComponent(q)}&limit=5`,`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(q)}&limit=5`];
+  let feats=[];
+  for(const u of urls){try{const r=await fetch(u);if(!r.ok)continue;const j=await r.json();feats=j.features||[];if(feats.length)break}catch(e){}}
+  const L_=$('#acList');
+  if(!feats.length){L_.hidden=true;return}
+  L_.innerHTML=feats.map((f,i)=>`<button type="button" data-i="${i}">${esc(f.properties.label)}</button>`).join('');
+  L_.hidden=false;
+  L_.onclick=ev=>{const b=ev.target.closest('button');if(!b)return;const f=feats[+b.dataset.i];
+    S.c.adresse=f.properties.label;S.c.lng=f.geometry.coordinates[0];S.c.lat=f.geometry.coordinates[1];save();
+    $('#adr').value=S.c.adresse;L_.hidden=true;if(map&&S.mode==='map'){map.setView([S.c.lat,S.c.lng],19)}toast('Adresse localisée')};
+}
+document.addEventListener('click',e=>{if(!e.target.closest('.ac'))$('#acList').hidden=true});
+$('#btnGeo').onclick=()=>{
+  if(!navigator.geolocation){toast('Géolocalisation indisponible');return}
+  navigator.geolocation.getCurrentPosition(p=>{S.c.lat=p.coords.latitude;S.c.lng=p.coords.longitude;
+    if(!S.c.adresse){S.c.adresse=`Position GPS ${S.c.lat.toFixed(5)}, ${S.c.lng.toFixed(5)}`;$('#adr').value=S.c.adresse}
+    save();if(map&&S.mode==='map')map.setView([S.c.lat,S.c.lng],19);toast('Position enregistrée')},
+    ()=>toast('Position refusée ou indisponible'),{enableHighAccuracy:true,timeout:10000});
+};
+
+/* ============ CARTE ============ */
+let map=null,devLayer,draftLayer,tool=null,draft=[],tileErr=0;
+function initMap(){
+  if(map){map.remove();map=null}
+  tileErr=0;$('#tileWarn').hidden=true;
+  if(S.mode==='image'&&S.img){
+    map=L.map('map',{crs:L.CRS.Simple,minZoom:-4,maxZoom:3,zoomSnap:.25,doubleClickZoom:false});
+    const b=[[0,0],[S.img.h,S.img.w]];L.imageOverlay(S.img.src,b).addTo(map);map.fitBounds(b);
+    $('#btnSat').hidden=false;
+  }else{
+    S.mode='map';
+    map=L.map('map',{maxZoom:21,doubleClickZoom:false}).setView(S.c.lat?[S.c.lat,S.c.lng]:[46.6,2.4],S.c.lat?19:6);
+    const t=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:21,maxNativeZoom:19,attribution:'Esri World Imagery'}).addTo(map);
+    t.on('tileerror',()=>{if(++tileErr>4)$('#tileWarn').hidden=false});
+    if(S.c.lat)L.circleMarker([S.c.lat,S.c.lng],{radius:5,color:'#fff',weight:2,fillColor:'#1E2328',fillOpacity:1,interactive:false}).addTo(map);
+    $('#btnSat').hidden=true;
+  }
+  devLayer=L.layerGroup().addTo(map);draftLayer=L.layerGroup().addTo(map);
+  map.on('click',onMapClick);
+  renderDevices();renderDevList();
+}
+function renderTools(){
+  $('#tools').innerHTML=Object.entries(TYPES).map(([k,t])=>`<button type="button" class="tool${tool===k?' on':''}" data-tool="${k}"><i class="${t.geom==='line'?'ln':''}" style="background:${t.color}"></i>${t.label}</button>`).join('');
+}
+$('#tools').addEventListener('click',e=>{const b=e.target.closest('[data-tool]');if(!b)return;
+  if(draft.length>=2&&tool!==b.dataset.tool)finishLine();
+  draft=[];drawDraft();tool=tool===b.dataset.tool?null:b.dataset.tool;renderTools();
+  $('#drawBar').classList.toggle('on',!!tool&&TYPES[tool].geom==='line');
+  $('#map').style.cursor=tool?'crosshair':'';
+  if(tool)toast(TYPES[tool].geom==='line'?'Touchez les points du tracé puis « Terminer le tracé »':'Touchez la vue pour placer le dispositif')});
+function onMapClick(e){
+  if(!tool)return;const ll=[e.latlng.lat,e.latlng.lng];
+  if(TYPES[tool].geom==='point')addDevice(tool,[ll]);else{draft.push(ll);drawDraft()}
+}
+function drawDraft(){
+  draftLayer.clearLayers();if(!draft.length){$('#drawInfo').textContent='Touchez la toiture pour poser les points du tracé.';return}
+  const c=TYPES[tool]?.color||'#000';
+  L.polyline(draft,{color:c,weight:4,dashArray:'6 6'}).addTo(draftLayer);
+  draft.forEach(p=>L.circleMarker(p,{radius:5,color:'#fff',weight:2,fillColor:c,fillOpacity:1,interactive:false}).addTo(draftLayer));
+  const len=lineLen(draft);$('#drawInfo').textContent=`${draft.length} point(s)${len!=null?' — '+len.toFixed(1)+' m':''}`;
+}
+$('#btnUndo').onclick=()=>{draft.pop();drawDraft()};
+$('#btnEnd').onclick=finishLine;
+function finishLine(){if(draft.length<2){toast('Au moins 2 points pour un tracé');return}addDevice(tool,draft.slice());draft=[];drawDraft()}
+function addDevice(type,coords){
+  S.cnt[type]=(S.cnt[type]||0)+1;
+  const d={id:TYPES[type].short+S.cnt[type],type,coords,fab:S.p.fournisseur||'',ref:'',lot:'',nb:'',obs:''};
+  S.dev.push(d);save();renderDevices();renderDevList();hl(d.id);toast(`${d.id} ajouté`);
+}
+function lineLen(c){if(S.mode!=='map')return null;let s=0;for(let i=1;i<c.length;i++)s+=L.latLng(c[i-1]).distanceTo(L.latLng(c[i]));return s}
+const devLen=d=>TYPES[d.type].geom==='line'?lineLen(d.coords):null;
+function renderDevices(){
+  if(!devLayer)return;devLayer.clearLayers();
+  S.dev.forEach(d=>{const t=TYPES[d.type];let ly;
+    if(t.geom==='point')ly=L.circleMarker(d.coords[0],{radius:9,color:'#fff',weight:2.5,fillColor:t.color,fillOpacity:1});
+    else ly=L.polyline(d.coords,{color:t.color,weight:6,dashArray:d.type==='gardecorps'?'12 6':null});
+    ly.bindTooltip(d.id,{permanent:true,direction:'top',className:'lbl',offset:[0,-6]});
+    ly.on('click',ev=>{L.DomEvent.stopPropagation(ev);hl(d.id)});ly.addTo(devLayer)});
+}
+function hl(id){$$('.dev').forEach(x=>x.classList.toggle('hl',x.id==='dv-'+id));const el=$('#dv-'+id);if(el)el.scrollIntoView({behavior:'smooth',block:'nearest'})}
+function renderDevList(){
+  const by={};S.dev.forEach(d=>{by[d.type]=by[d.type]||{n:0,m:0};by[d.type].n++;const l=devLen(d);if(l)by[d.type].m+=l});
+  $('#sum').innerHTML=Object.entries(by).map(([k,v])=>`<div><b>${TYPES[k].geom==='line'&&S.mode==='map'?v.m.toFixed(1)+' m':v.n}</b>${TYPES[k].label}${TYPES[k].geom==='line'?` (${v.n})`:''}</div>`).join('');
+  const el=$('#devList');
+  if(!S.dev.length){el.innerHTML='<p class="empty">Aucun dispositif. Choisissez un type ci-dessus puis touchez la vue aérienne.</p>';return}
+  el.innerHTML=S.dev.map(d=>{const t=TYPES[d.type],l=devLen(d);return `<div class="dev" id="dv-${d.id}">
+    <div class="dev-h"><span class="chip" style="background:${t.color}"></span><b>${d.id}</b><span>${t.label}</span><span class="len">${l?l.toFixed(1)+' m':''}</span><button type="button" class="x" data-del="${d.id}">Supprimer</button></div>
+    <div class="grid2">
+      <label>Fabricant<input data-dev="${d.id}" data-f="fab" list="fournList" value="${esc(d.fab)}"></label>
+      ${(()=>{const cs=catOf(d.fab,d.type);if(!cs.length)return '';const ok=cs.filter(compat),ko=cs.filter(c=>!compat(c));
+        const o=c=>`<option value="${c.id}" ${d.prod===c.id?'selected':''}>${esc(c.nom)}</option>`;
+        return `<label>Produit ${esc(cs[0].fab)}<select data-prod="${d.id}"><option value="">— Choisir dans le catalogue —</option>${ok.length?`<optgroup label="Compatibles : ${esc(SUPPORTS[S.p.support]||'')}">${ok.map(o).join('')}</optgroup>`:''}${ko.length?`<optgroup label="Autres supports">${ko.map(o).join('')}</optgroup>`:''}</select></label>`})()}
+      <label>Modèle / référence<input data-dev="${d.id}" data-f="ref" value="${esc(d.ref)}"></label>
+      ${(()=>{const c=catById(d.prod);if(!c)return '';return `<div class="full hint${compat(c)?'':' warn'}"><b>${esc(c.nom)}</b> — ${esc(c.norme)}${compat(c)?'':` — support déclaré (${esc(SUPPORTS[S.p.support]||'')}) non listé pour ce produit`}<br><span class="src">${esc(c.desc)}</span><br>${c.fiche?`<a href="${c.fiche}" target="_blank" rel="noopener">Fiche technique (PDF)</a> · `:''}<a href="${c.page}" target="_blank" rel="noopener">Page produit</a> · <a href="${AJ_DOC}" target="_blank" rel="noopener">Notice de montage (espace client)</a></div>`})()}
+      <label>N° de lot / série<input data-dev="${d.id}" data-f="lot" value="${esc(d.lot)}"></label>
+      ${d.type==='ligne'?`<label>Utilisateurs simultanés max<input type="number" min="1" inputmode="numeric" data-dev="${d.id}" data-f="nb" value="${esc(d.nb)}"></label>`:''}
+      <label class="full">Observation de pose<input data-dev="${d.id}" data-f="obs" value="${esc(d.obs)}" placeholder="Ex. fixation traversante, reprise d'étanchéité"></label>
+    </div></div>`}).join('');
+}
+$('#devList').addEventListener('click',e=>{const b=e.target.closest('[data-del]');if(!b)return;
+  if(!confirm(`Supprimer ${b.dataset.del} ?`))return;S.dev=S.dev.filter(d=>d.id!==b.dataset.del);save();renderDevices();renderDevList()});
+$('#imgUp').addEventListener('change',async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  if(S.dev.length&&!confirm('Changer de fond efface les dispositifs déjà placés. Continuer ?'))return;
+  const r=await toJpeg(f,2000);S.img={src:r.dataUrl,w:r.w,h:r.h};S.mode='image';S.dev=[];S.cnt={};save();initMap();toast('Vue importée : placez les dispositifs')});
+$('#btnSat').onclick=()=>{if(S.dev.length&&!confirm('Revenir au satellite efface les dispositifs placés sur l\'image. Continuer ?'))return;S.mode='map';S.img=null;S.dev=[];S.cnt={};save();initMap()};
+
+/* ============ FICHIERS ============ */
+function toJpeg(file,max){return new Promise((res,rej)=>{const u=URL.createObjectURL(file),im=new Image();
+  im.onload=()=>{const r=Math.min(1,max/Math.max(im.width,im.height)),w=Math.round(im.width*r),h=Math.round(im.height*r);
+    const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(im,0,0,w,h);URL.revokeObjectURL(u);
+    res({dataUrl:c.toDataURL('image/jpeg',.82),w,h})};
+  im.onerror=()=>{URL.revokeObjectURL(u);rej(new Error('image illisible'))};im.src=u})}
+const b64bytes=d=>{const s=atob(d.split(',')[1]);const a=new Uint8Array(s.length);for(let i=0;i<s.length;i++)a[i]=s.charCodeAt(i);return a};
+
+/* ============ DOCUMENTS ============ */
+function groups(){
+  const present=new Set(S.dev.map(d=>d.type));
+  const g=[{k:'common',label:'Pièces communes au chantier',color:'#1E2328',docs:DOCS.common}];
+  Object.keys(TYPES).forEach(t=>{if(present.has(t))g.push({k:t,label:`${TYPES[t].label} — ${TYPES[t].norme}`,color:TYPES[t].color,docs:DOCS[t]})});
+  return g;
+}
+const linked=id=>(S.links[id]||[]).map(x=>LIB.find(l=>l.id===x)).filter(Boolean);
+const catDocs=id=>{const s=LIBSLOT[id];if(!s||s[1]!=='conf')return[];const seen=new Set();return S.dev.filter(d=>d.type===s[0]).map(d=>catById(d.prod)).filter(c=>c&&c.fiche&&!seen.has(c.fiche)&&seen.add(c.fiche))};
+const status=d=>(FILES[d.id]?.length||linked(d.id).length||catDocs(d.id).length)?'ok':S.na[d.id]?'na':d.opt?'opt':'miss';
+function stats(){const all=groups().flatMap(g=>g.docs);const need=all.filter(d=>!d.opt);
+  const done=need.filter(d=>['ok','na'].includes(status(d))).length;return{all,need,done,missing:need.filter(d=>status(d)==='miss')}}
+function renderDocs(){
+  $('#memo').checked=!!S.memo;
+  const st=stats(),pct=st.need.length?Math.round(st.done/st.need.length*100):0;
+  $('#docPct').textContent=pct+' %';$('#docGauge').style.width=pct+'%';
+  $('#docTxt').textContent=`${st.done} / ${st.need.length} pièces attendues fournies ou sans objet${S.dev.length?'':' — aucun dispositif implanté (étape 3)'}`;
+  $('#docGroups').innerHTML=groups().map(g=>`<div class="grp"><h3><i style="background:${g.color}"></i>${esc(g.label)}</h3>
+    ${g.docs.map(d=>{const s=status(d);return `<div class="doc ${s}">
+      <div><div class="doc-t">${esc(d.label)}${d.opt?' <span class="src">(si applicable)</span>':''}</div>
+        <div class="tags">${d.who.map(w=>`<span class="tag ${w}">${WHO[w]}</span>`).join('')}<span class="tag lv ${d.level}">${LVL[d.level]}</span></div>
+        <div class="ref">${esc(d.ref)}</div>
+        <div class="files">${(FILES[d.id]||[]).map((f,i)=>`<span class="file">${esc(f.name)}<button type="button" data-rm="${d.id}|${i}" aria-label="Retirer ${esc(f.name)}">×</button></span>`).join('')}${linked(d.id).map(l=>`<span class="file lib">Bibliothèque : ${esc(libTitle(l))}<button type="button" data-unlink="${d.id}|${l.id}" aria-label="Retirer">×</button></span>`).join('')}${catDocs(d.id).map(c=>`<span class="file lib">Catalogue ${esc(c.fab)} : <a href="${c.fiche}" target="_blank" rel="noopener">${esc(c.nom)}</a><button type="button" data-memcat="${c.id}" title="Enregistrer le PDF dans la bibliothèque" style="color:var(--blue)">⤓</button></span>`).join('')}</div>
+        ${LIBSLOT[d.id]?.[1]==='notice'&&S.dev.some(x=>x.type===LIBSLOT[d.id][0]&&catById(x.prod))?`<div class="src" style="margin-top:6px">Notices ${esc(AF)} réservées à l'espace client : <a href="${AJ_DOC}" target="_blank" rel="noopener">se connecter</a> ou demander au fournisseur.</div>`:''}
+        ${LIBSLOT[d.id]&&s!=='ok'?(()=>{const m=libMatches(d.id).slice(0,3);return m.length?`<div class="sugg">Dans la bibliothèque :${m.map(x=>`<button type="button" data-link="${d.id}|${x.l.id}">Joindre ${esc(libTitle(x.l))}</button>`).join('')}</div>`:''})():''}</div>
+      <div class="doc-act"><label class="btn-file">Ajouter<input type="file" multiple accept="application/pdf,image/*" data-up="${d.id}"></label>
+        <label class="na"><input type="checkbox" data-na="${d.id}" ${S.na[d.id]?'checked':''}>Sans objet</label></div></div>`}).join('')}</div>`).join('');
+}
+$('#docGroups').addEventListener('change',async e=>{
+  const up=e.target.dataset.up,na=e.target.dataset.na;
+  if(na){S.na[na]=e.target.checked;save();renderDocs();return}
+  if(!up)return;const fs=[...e.target.files];
+  if(LIBSLOT[up]&&S.memo){for(const f of fs){try{const[dt,k]=LIBSLOT[up],dv=S.dev.find(x=>x.type===dt)||{};
+      const it=await addToLib(f,{fab:dv.fab||S.p.fournisseur||'',dtype:dt,kind:k,modele:dv.ref||'',version:'',date:''});
+      if(it)(S.links[up]=S.links[up]||[]).push(it.id)}catch(err){toast(`${f.name} : lecture impossible`)}}
+    save();renderDocs();toast('Enregistré dans la bibliothèque fabricants');return}
+  for(const f of fs){try{
+    if(f.type==='application/pdf'||/\.pdf$/i.test(f.name)){(FILES[up]=FILES[up]||[]).push({name:f.name,kind:'pdf',bytes:new Uint8Array(await f.arrayBuffer())})}
+    else if(f.type.startsWith('image/')){const r=await toJpeg(f,1800);(FILES[up]=FILES[up]||[]).push({name:f.name,kind:'img',bytes:b64bytes(r.dataUrl),w:r.w,h:r.h})}
+    else toast(`${f.name} : format non pris en charge (PDF ou image)`);
+  }catch(err){toast(`${f.name} : lecture impossible`)}}
+  renderDocs();
+});
+$('#docGroups').addEventListener('click',e=>{
+  const rm=e.target.closest('[data-rm]'),ul=e.target.closest('[data-unlink]'),lk=e.target.closest('[data-link]');
+  if(rm){const[id,i]=rm.dataset.rm.split('|');FILES[id].splice(+i,1)}
+  else if(ul){const[id,x]=ul.dataset.unlink.split('|');S.links[id]=(S.links[id]||[]).filter(v=>v!==x);save()}
+  else if(lk){const[id,x]=lk.dataset.link.split('|');S.links[id]=[...(S.links[id]||[]),x];save()}
+  else if(e.target.closest('[data-memcat]')){memCat(catById(e.target.closest('[data-memcat]').dataset.memcat));return}
+  else return;renderDocs()});
+$('#memo').addEventListener('change',e=>{S.memo=e.target.checked;save()});
+$('#btnAuto').onclick=()=>{let n=0;groups().forEach(g=>g.docs.forEach(d=>{if(!LIBSLOT[d.id]||status(d)==='ok'||S.na[d.id])return;
+  const m=libMatches(d.id).filter(x=>x.score>=2);if(m.length){S.links[d.id]=[m[0].l.id];n++}}));save();renderDocs();
+  toast(n?`${n} pièce(s) jointe(s) depuis la bibliothèque`:'Aucun document correspondant au fabricant des dispositifs')};
+
+/* ============ BIBLIOTHÈQUE FABRICANTS ============ */
+const LIBSLOT={a_conf:['ancrage','conf'],a_notice:['ancrage','notice'],l_conf:['ligne','conf'],l_notice:['ligne','notice'],g_conf:['gardecorps','conf'],g_notice:['gardecorps','notice'],h_conf:['cheminement','conf'],h_notice:['cheminement','notice'],e_conf:['crinoline','conf'],e_notice:['crinoline','notice']};
+const KIND={conf:'Fiche technique / déclaration de conformité',notice:'Notice (installation, utilisation, entretien)',essai:"Rapport d'essais / certificat",autre:'Autre document fabricant'};
+let LIB=[];
+const idb=(()=>{let p;const open=()=>p||(p=new Promise((res,rej)=>{const r=indexedDB.open('attila_doe_lib',1);r.onupgradeneeded=()=>r.result.createObjectStore('docs',{keyPath:'id'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}));
+  const tx=async(mode,fn)=>{const db=await open();return new Promise((res,rej)=>{const t=db.transaction('docs',mode);const q=fn(t.objectStore('docs'));t.oncomplete=()=>res(q&&q.result);t.onerror=()=>rej(t.error)})};
+  return{all:()=>tx('readonly',s=>s.getAll()),put:v=>tx('readwrite',s=>s.put(v)),del:id=>tx('readwrite',s=>s.delete(id))}})();
+const libTitle=l=>[l.fab,TYPES[l.dtype]?.short,{conf:'fiche',notice:'notice',essai:'essais',autre:'doc'}[l.kind],l.modele,l.version,l.date?l.date.slice(0,4):''].filter(Boolean).join(' · ');
+const isOld=l=>l.date&&(Date.now()-new Date(l.date))/(365.25*864e5)>3;
+const norm=s=>String(s||'').toLowerCase().trim();
+function libMatches(docId){const[dt,k]=LIBSLOT[docId];const devs=S.dev.filter(d=>d.type===dt);
+  const fabs=new Set([...devs.map(d=>norm(d.fab)),norm(S.p.fournisseur)].filter(Boolean)),refs=devs.map(d=>norm(d.ref)).filter(Boolean);
+  return LIB.filter(l=>l.dtype===dt&&l.kind===k).map(l=>({l,score:(fabs.has(norm(l.fab))?2:0)+(l.modele&&refs.some(r=>r.includes(norm(l.modele))||norm(l.modele).includes(r))?3:0)}))
+    .sort((a,b)=>b.score-a.score||String(b.l.date).localeCompare(String(a.l.date)))}
+async function addToLib(f,meta){
+  const id='loc:'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);let it;
+  if(f.type==='application/pdf'||/\.pdf$/i.test(f.name))it={...meta,id,name:f.name,mime:'application/pdf',blob:new Blob([await f.arrayBuffer()],{type:'application/pdf'})};
+  else if(f.type.startsWith('image/')){const r=await toJpeg(f,1800);it={...meta,id,name:f.name,mime:'image/jpeg',w:r.w,h:r.h,blob:new Blob([b64bytes(r.dataUrl)],{type:'image/jpeg'})}}
+  else{toast(`${f.name} : format non pris en charge`);return null}
+  it.src='local';it.added=new Date().toISOString().slice(0,10);
+  try{await idb.put(it)}catch(e){toast('Stockage impossible sur cet appareil (navigation privée ?)');return null}
+  LIB.push(it);return it}
+const libForCat=c=>LIB.find(l=>l.fiche===c.fiche||(norm(l.modele)===norm(c.nom)&&l.kind==='conf'));
+async function memCat(c){if(!c)return;if(libForCat(c)){toast('Déjà dans la bibliothèque');return}
+  try{const r=await fetch(c.fiche);if(!r.ok)throw 0;const b=await r.blob();
+    const it={id:'loc:'+Date.now().toString(36),fab:c.fab,dtype:c.dtype,kind:'conf',modele:c.nom,version:(c.fiche.match(/_(20\d\d)(_V\d)?/)||[])[0]?.replace(/^_/,'').replace('_',' ')||'',date:'',name:c.fiche.split('/').pop(),mime:'application/pdf',fiche:c.fiche,blob:new Blob([b],{type:'application/pdf'}),src:'local',added:new Date().toISOString().slice(0,10)};
+    await idb.put(it);LIB.push(it);toast('Fiche enregistrée dans la bibliothèque');renderDocs()}
+  catch(e){window.open(c.fiche,'_blank');toast('Le site du fabricant bloque le téléchargement direct : enregistrez le PDF ouvert puis ajoutez-le dans « Bibliothèque fabricants » (produit pré-sélectionnable).')}}
+async function libBytes(l){if(l.blob)return new Uint8Array(await l.blob.arrayBuffer());throw new Error('document indisponible')}
+const toB64=async blob=>{const u=new Uint8Array(await blob.arrayBuffer());let s='';for(let i=0;i<u.length;i+=32768)s+=String.fromCharCode.apply(null,u.subarray(i,i+32768));return btoa(s)};
+const fromB64=(b,mime)=>new Blob([Uint8Array.from(atob(b),c=>c.charCodeAt(0))],{type:mime});
+async function loadLib(){
+  let local=[],net=[];try{local=await idb.all()||[]}catch(e){}
+  try{const r=await fetch('bibliotheque.json',{cache:'no-cache'});if(r.ok){const j=await r.json();net=(j.docs||[]).map(d=>({...d,id:'net:'+d.id,src:'reseau',blob:fromB64(d.data,d.mime),data:undefined}))}}catch(e){}
+  LIB=[...net,...local];
+  if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
+  if(S.step===4)renderDocs();if(S.step===6)renderLib();
+}
+function renderLib(){
+  $('#lfType').innerHTML=Object.entries(TYPES).map(([k,t])=>`<option value="${k}">${t.label}</option>`).join('');
+  $('#lfKind').innerHTML=Object.entries(KIND).map(([k,t])=>`<option value="${k}">${t}</option>`).join('');
+  if(!$('#lfFab').value)$('#lfFab').value=S.p.fournisseur||'';
+  $('#lfProd').innerHTML='<option value="">— Aucun (saisie libre) —</option>'+Object.keys(TYPES).map(t=>{const cs=CATALOG.filter(c=>c.dtype===t);return cs.length?`<optgroup label="${TYPES[t].label}">${cs.map(c=>`<option value="${c.id}">${esc(c.fab+' — '+c.nom)}</option>`).join('')}</optgroup>`:''}).join('');
+  drawLib()}
+function drawLib(){
+  const q=norm($('#libQ').value),by={};
+  LIB.filter(l=>!q||norm([l.fab,l.modele,l.version,TYPES[l.dtype]?.label,KIND[l.kind],l.name].join(' ')).includes(q)).forEach(l=>{(by[l.fab||'Sans fabricant']=by[l.fab||'Sans fabricant']||[]).push(l)});
+  const fabs=Object.keys(by).sort();
+  $('#libList').innerHTML=fabs.length?fabs.map(f=>`<div class="lib-fab"><h3>${esc(f)} <span class="src">(${by[f].length})</span></h3>${by[f].map(l=>`<div class="li">
+    <div class="li-h"><b>${esc(KIND[l.kind]||l.kind)}${l.modele?' — '+esc(l.modele):''}</b>
+      <span class="tag" style="background:${TYPES[l.dtype]?.color};color:#fff">${esc(TYPES[l.dtype]?.label||l.dtype)}</span>
+      ${l.version?`<span class="tag">${esc(l.version)}</span>`:''}${l.date?`<span class="tag">${fmtD(l.date)}</span>`:''}
+      ${isOld(l)?'<span class="tag old">Plus de 3 ans : vérifier la version</span>':''}
+      <span class="tag ${l.src==='reseau'?'net':''}">${l.src==='reseau'?'Réseau QHSE':'Cet appareil'}</span>
+      <button type="button" class="btn line" data-open="${l.id}" style="min-height:36px;padding:6px 10px;font-size:13px">Ouvrir</button>
+      ${l.src==='local'?`<button type="button" class="x" data-ldel="${l.id}">Supprimer</button>`:''}</div>
+    <div class="src">${esc(l.name)}</div>
+    ${l.src==='local'?`<div class="grid2">
+      <label>Fabricant<input data-lid="${l.id}" data-lf="fab" value="${esc(l.fab)}"></label>
+      <label>Modèle / gamme<input data-lid="${l.id}" data-lf="modele" value="${esc(l.modele)}"></label>
+      <label>Version / indice<input data-lid="${l.id}" data-lf="version" value="${esc(l.version)}"></label>
+      <label>Date du document<input type="date" data-lid="${l.id}" data-lf="date" value="${esc(l.date)}"></label></div>`:''}</div>`).join('')}</div>`).join('')
+    :'<p class="empty" style="margin-top:14px">Bibliothèque vide. Ajoutez les fiches et notices de vos fabricants ci-dessus, ou cochez « Mémoriser » à l\'étape 4 : chaque document joint sera réutilisable.</p>'}
+$('#libQ').addEventListener('input',drawLib);
+$('#lfProd').addEventListener('change',e=>{const c=catById(e.target.value);if(!c)return;$('#lfFab').value=c.fab;$('#lfType').value=c.dtype;$('#lfKind').value='conf';$('#lfMod').value=c.nom;$('#lfVer').value=(c.fiche?.match(/_(20\d\d)(_V\d)?\.pdf/)||[])[0]?.replace(/^_|\.pdf$/g,'').replace('_',' ')||''});
+$('#lfFile').addEventListener('change',async e=>{const fs=[...e.target.files];e.target.value='';
+  const pc=catById($('#lfProd').value);
+  const meta={fiche:pc?.fiche||'',fab:$('#lfFab').value.trim(),dtype:$('#lfType').value,kind:$('#lfKind').value,modele:$('#lfMod').value.trim(),version:$('#lfVer').value.trim(),date:$('#lfDate').value};
+  if(!meta.fab){toast('Renseignez le fabricant');return}
+  let n=0;for(const f of fs)if(await addToLib(f,meta))n++;drawLib();if(n)toast(`${n} document(s) ajouté(s)`)});
+$('#libList').addEventListener('click',async e=>{
+  const o=e.target.closest('[data-open]'),d=e.target.closest('[data-ldel]');
+  if(o){const l=LIB.find(x=>x.id===o.dataset.open);if(l?.blob){const u=URL.createObjectURL(l.blob);window.open(u,'_blank');setTimeout(()=>URL.revokeObjectURL(u),60000)}}
+  if(d){if(!confirm('Supprimer ce document de la bibliothèque ?'))return;await idb.del(d.dataset.ldel).catch(()=>{});LIB=LIB.filter(x=>x.id!==d.dataset.ldel);drawLib()}});
+$('#libList').addEventListener('change',async e=>{const el=e.target;if(!el.dataset.lid)return;const l=LIB.find(x=>x.id===el.dataset.lid);if(!l)return;
+  l[el.dataset.lf]=el.value.trim();try{await idb.put(l)}catch(err){}if(el.dataset.lf==='fab')drawLib()});
+$('#btnExport').onclick=async()=>{const loc=LIB.filter(l=>l.src==='local');if(!loc.length){toast('Aucun document local à exporter');return}
+  $('#busyTxt').textContent='Export de la bibliothèque…';$('#busy').classList.add('on');
+  try{const docs=[];for(const l of loc){const{blob,src,...m}=l;docs.push({...m,id:l.id.replace(/^loc:/,''),data:await toB64(blob)})}
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({app:'attila-doe',v:1,exported:new Date().toISOString(),docs})],{type:'application/json'}));
+    a.download=`bibliotheque_fabricants_${new Date().toISOString().slice(0,10)}.json`;document.body.appendChild(a);a.click();a.remove();toast(`${docs.length} document(s) exporté(s)`)}
+  finally{$('#busy').classList.remove('on');$('#busyTxt').textContent='Assemblage du DOE…'}};
+$('#libImport').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
+  try{const j=JSON.parse(await f.text());let n=0;
+    for(const d of j.docs||[]){const id='loc:'+d.id;if(LIB.some(x=>x.id===id))continue;const{data,...m}=d;const it={...m,id,src:'local',blob:fromB64(data,d.mime)};await idb.put(it);LIB.push(it);n++}
+    drawLib();toast(`${n} document(s) importé(s)`)}catch(err){toast('Fichier de bibliothèque illisible')}});
+
+/* ============ ÉTAPE 5 ============ */
+$('#raciBody').innerHTML=RACI.map(r=>`<tr><td>${esc(r[0])}</td>${[1,2,3].map(i=>`<td class="c ${r[i]}">${r[i]}</td>`).join('')}<td class="rf">${esc(r[4])}</td></tr>`).join('');
+function nextCtrl(){if(!S.p.reception)return null;const d=new Date(S.p.reception+'T12:00:00');d.setMonth(d.getMonth()+(+S.p.perio||12));return d}
+function renderFinal(){
+  const n=nextCtrl();
+  $('#nextDate').textContent=n?n.toLocaleDateString('fr-FR',{month:'long',year:'numeric'}):'—';
+  $('#nextTxt').textContent=n?`Au plus tard le ${n.toLocaleDateString('fr-FR')}, puis tous les ${S.p.perio} mois. Résultats consignés par le client dans le dossier annexé au DMLT.`:'Renseignez la date de réception à l\'étape 2.';
+  $('#hintVerif').hidden=!(S.p.verif==='agence'&&!S.p.forme);
+  $('#hintOffre').hidden=!(S.p.verif==='agence'&&S.p.forme);
+  const st=stats(),miss=[];
+  if(!S.c.client)miss.push('client (étape 1)');if(!S.c.adresse)miss.push('adresse (étape 1)');if(!S.p.reception)miss.push('date de réception (étape 2)');if(!S.dev.length)miss.push('aucun dispositif implanté (étape 3)');
+  $('#finalCheck').innerHTML=(miss.length?`<div class="hint warn"><b>À compléter :</b> ${miss.join(', ')}.</div>`:'')+
+    (st.missing.length?`<div class="hint ko"><b>${st.missing.length} pièce(s) manquante(s)</b> : le DOE sera marqué « provisoire ».<br><span class="src">${st.missing.map(d=>esc(d.label)).join(' ; ')}</span></div>`
+    :`<div class="hint ok"><b>Toutes les pièces attendues sont fournies</b> : le DOE sera marqué « complet ».</div>`);
+}
+$('#btnPdf').onclick=async()=>{
+  if(!window.PDFLib){toast('Module PDF non chargé : vérifiez la connexion');return}
+  $('#busy').classList.add('on');
+  try{const bytes=await buildPDF();const blob=new Blob([bytes],{type:'application/pdf'});const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);a.download=`DOE_securisation_${(S.p.ref||S.c.client||'chantier').replace(/[^\w-]+/g,'_')}_${new Date().toISOString().slice(0,10)}.pdf`;
+    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);toast('DOE généré');}
+  catch(err){console.error(err);toast('Échec de la génération : '+(err.message||err))}
+  finally{$('#busy').classList.remove('on')}
+};
+
+/* ============ PDF ============ */
+const clean=s=>String(s??'').replace(/[’‘]/g,"'").replace(/[“”]/g,'"').replace(/[–—]/g,'-').replace(/œ/g,'oe').replace(/Œ/g,'OE').replace(/…/g,'...').replace(/×/g,'x').replace(/[^\x20-\x7E\xA0-\xFF\n]/g,'');
+async function buildPDF(){
+  const {PDFDocument,StandardFonts,rgb}=PDFLib;
+  const hex=h=>{const n=parseInt(h.slice(1),16);return rgb((n>>16&255)/255,(n>>8&255)/255,(n&255)/255)};
+  const pdf=await PDFDocument.create();
+  pdf.setTitle(clean(`DOE sécurisation de toiture - ${S.c.client}`));pdf.setAuthor('ATTILA');
+  const F=await pdf.embedFont(StandardFonts.Helvetica),B=await pdf.embedFont(StandardFonts.HelveticaBold);
+  const W=595.28,H=841.89,M=40,RED=hex('#C0392B'),INK=hex('#1E2328'),MUTE=hex('#5E6770'),LINE=hex('#D5DADF'),WHITE=rgb(1,1,1),SOFT=hex('#EEF0F2');
+  let page,y;
+  const wrap=(t,font,size,maxW)=>{const out=[];for(const p of clean(t).split('\n')){let line='';for(const w of p.split(' ')){const test=line?line+' '+w:w;if(font.widthOfTextAtSize(test,size)>maxW&&line){out.push(line);line=w}else line=test}out.push(line)}return out};
+  const np=title=>{page=pdf.addPage([W,H]);page.drawRectangle({x:0,y:H-40,width:W,height:40,color:RED});
+    page.drawText(clean('ATTILA  |  Dossier des ouvrages exécutés - sécurisation de toiture'),{x:M,y:H-25,size:9.5,font:B,color:WHITE});
+    y=H-62;if(title){page.drawText(clean(title),{x:M,y:y-16,size:16,font:B,color:INK});y-=30}};
+  const ensure=h=>{if(y-h<50)np(null)};
+  const para=(t,o={})=>{const size=o.size||9.5,font=o.font||F,ind=o.indent||0;for(const l of wrap(t,font,size,W-2*M-ind)){ensure(size+4);page.drawText(l,{x:M+ind,y:y-size,size,font,color:o.color||INK});y-=size+3.5}y-=o.gap??5};
+  const h3=t=>{ensure(40);y-=6;page.drawRectangle({x:M,y:y-14,width:4,height:14,color:RED});page.drawText(clean(t),{x:M+10,y:y-12,size:11.5,font:B,color:INK});y-=24};
+  const table=(cols,rows,o={})=>{const size=o.size||8.5,pad=4;
+    const row=(cells,bold,fill)=>{const wr=cells.map((c,i)=>wrap(c??'',bold?B:F,size,cols[i].w-2*pad));const h=Math.max(...wr.map(l=>l.length))*(size+2.6)+2*pad;ensure(h);
+      if(fill)page.drawRectangle({x:M,y:y-h,width:W-2*M,height:h,color:fill});let x=M;
+      wr.forEach((ls,i)=>{ls.forEach((l,k)=>page.drawText(l,{x:x+pad,y:y-pad-size-k*(size+2.6)+1,size,font:bold?B:F,color:(cols[i].color&&!bold)?cols[i].color(cells[i]):INK}));x+=cols[i].w});
+      page.drawLine({start:{x:M,y:y-h},end:{x:W-M,y:y-h},thickness:.5,color:LINE});y-=h};
+    row(cols.map(c=>c.t),true,SOFT);rows.forEach(r=>row(r,false,null));y-=10};
+
+  const st=stats(),complete=!st.missing.length,present=Object.keys(TYPES).filter(t=>S.dev.some(d=>d.type===t));
+  const nxt=nextCtrl();
+  // annex numbering
+  const CATB={};for(const g of groups())for(const d of g.docs)for(const c of catDocs(d.id)){if(c.fiche in CATB)continue;
+    const l=libForCat(c);if(l){try{CATB[c.fiche]={bytes:await libBytes(l),src:'lib'};continue}catch(e){}}
+    try{const r=await fetch(c.fiche);if(!r.ok)throw 0;CATB[c.fiche]={bytes:new Uint8Array(await r.arrayBuffer()),src:'web'}}catch(e){CATB[c.fiche]=null}}
+  let an=0;const annex={};groups().forEach(g=>g.docs.forEach(d=>{if(FILES[d.id]?.length||linked(d.id).length||catDocs(d.id).length)annex[d.id]='A'+(++an)}));
+
+  /* --- couverture --- */
+  page=pdf.addPage([W,H]);
+  page.drawRectangle({x:0,y:H-330,width:W,height:330,color:RED});
+  page.drawText('ATTILA',{x:M,y:H-64,size:15,font:B,color:WHITE});
+  page.drawText(clean(S.c.agence||''),{x:M,y:H-82,size:10,font:F,color:WHITE});
+  page.drawText(clean('Dossier des ouvrages exécutés'),{x:M,y:H-190,size:30,font:B,color:WHITE});
+  page.drawText(clean('Dispositifs de sécurisation de toiture'),{x:M,y:H-218,size:15,font:F,color:WHITE});
+  wrap(`${S.c.client||'Client'}${S.c.site?' - '+S.c.site:''}`,B,13,W-2*M).slice(0,2).forEach((l,i)=>page.drawText(l,{x:M,y:H-270-i*17,size:13,font:B,color:WHITE}));
+  wrap(S.c.adresse||'',F,10.5,W-2*M).slice(0,2).forEach((l,i)=>page.drawText(l,{x:M,y:H-306-i*13,size:10.5,font:F,color:WHITE}));
+  y=H-370;
+  const info=[['Référence',S.p.ref||'-'],['Fournisseur / fabricant',S.p.fournisseur||'-'],['Date de réception',fmtD(S.p.reception)],['Date d\'édition',new Date().toLocaleDateString('fr-FR')]];
+  info.forEach(([k,v])=>{page.drawText(clean(k),{x:M,y,size:10,font:F,color:MUTE});page.drawText(clean(v),{x:M+150,y,size:10,font:B,color:INK});y-=18});
+  y-=10;const sc=complete?hex('#38761D'):hex('#E69138');
+  page.drawRectangle({x:M,y:y-44,width:W-2*M,height:44,borderColor:sc,borderWidth:2});
+  page.drawText(clean(complete?'DOE COMPLET':'DOE PROVISOIRE'),{x:M+14,y:y-20,size:14,font:B,color:sc});
+  page.drawText(clean(complete?'Toutes les pièces attendues sont jointes ou déclarées sans objet.':`${st.missing.length} pièce(s) attendue(s) manquante(s) - voir bordereau des pièces.`),{x:M+14,y:y-35,size:9,font:F,color:INK});
+  y-=70;page.drawText('Sommaire',{x:M,y,size:12,font:B,color:INK});y-=18;
+  ['1. Identification et intervenants','2. Plan d\'implantation des dispositifs','3. Inventaire des dispositifs','4. Répartition des responsabilités','5. Contrôles périodiques et obligations après réception','6. Bordereau des pièces','Annexes'+(an?` A1 à A${an}`:'')].forEach(s=>{page.drawText(clean(s),{x:M+8,y,size:10,font:F,color:INK});y-=15});
+
+  /* --- 1 identification --- */
+  np('1. Identification et intervenants');
+  table([{t:'Rubrique',w:170},{t:'Information',w:W-2*M-170}],[
+    ['Client / maître d\'ouvrage',S.c.client],['Site / bâtiment',S.c.site],['Adresse',S.c.adresse+(S.c.lat?`\nGPS ${(+S.c.lat).toFixed(6)}, ${(+S.c.lng).toFixed(6)}`:'')],['Contact client',S.c.contact],
+    ['Référence devis / commande',S.p.ref],
+    ['Support / couverture',SUPPORTS[S.p.support]||S.p.support],
+    ['Fournisseur / fabricant (conception)',S.p.fournisseur],['Bureau d\'études',S.p.be||'BE du fournisseur'],
+    ['Installateur (pose)',`ATTILA - ${S.c.agence||'agence'}`],['Chargé d\'affaires',S.c.charge],['Période de pose',`${fmtD(S.p.debut)} au ${fmtD(S.p.reception)}`]
+  ].map(r=>[r[0],r[1]||'-']),{size:9});
+
+  /* --- 2 plan --- */
+  np('2. Plan d\'implantation des dispositifs');
+  const bx=M,bw=W-2*M,bh=430,by=y-bh;let proj=null,latRef=46,sat=false;
+  if(S.mode==='image'&&S.img){
+    page.drawRectangle({x:bx,y:by,width:bw,height:bh,color:SOFT});
+    const im=await pdf.embedJpg(b64bytes(S.img.src)),r=Math.min(bw/S.img.w,bh/S.img.h),dw=S.img.w*r,dh=S.img.h*r,ox=bx+(bw-dw)/2,oy=by+(bh-dh)/2;
+    page.drawImage(im,{x:ox,y:oy,width:dw,height:dh});proj=p=>({x:ox+p[1]*r,y:oy+p[0]*r});
+  }else{
+    const pts=S.dev.flatMap(d=>d.coords);if(!pts.length&&S.c.lat)pts.push([S.c.lat,S.c.lng]);
+    if(pts.length){
+      latRef=pts[0][0];const P=pts.map(p=>L.CRS.EPSG3857.project(L.latLng(p[0],p[1])));
+      let x0=Math.min(...P.map(p=>p.x)),x1=Math.max(...P.map(p=>p.x)),y0=Math.min(...P.map(p=>p.y)),y1=Math.max(...P.map(p=>p.y));
+      const cx=(x0+x1)/2,cy=(y0+y1)/2;let dx=Math.max(x1-x0,60)*1.35,dy=Math.max(y1-y0,60)*1.35;const asp=bh/bw;if(dy/dx<asp)dy=dx*asp;else dx=dy/asp;
+      x0=cx-dx/2;x1=cx+dx/2;y0=cy-dy/2;y1=cy+dy/2;
+      proj=p=>{const q=L.CRS.EPSG3857.project(L.latLng(p[0],p[1]));return{x:bx+(q.x-x0)/dx*bw,y:by+(q.y-y0)/dy*bh}};
+      try{const url=`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${x0},${y0},${x1},${y1}&bboxSR=3857&imageSR=3857&size=1400,${Math.round(1400*asp)}&format=jpg&f=image`;
+        const r=await fetch(url);if(!r.ok)throw new Error('export');const im=await pdf.embedJpg(new Uint8Array(await r.arrayBuffer()));page.drawImage(im,{x:bx,y:by,width:bw,height:bh});sat=true}
+      catch(e){page.drawRectangle({x:bx,y:by,width:bw,height:bh,color:SOFT});page.drawText(clean('Fond satellite indisponible - plan schématique à l\'échelle'),{x:bx+8,y:by+bh-16,size:8.5,font:F,color:MUTE})}
+      // échelle
+      const ptsPerM=bw/dx/Math.cos(latRef*Math.PI/180);const nice=[5,10,20,50,100,200].find(v=>v*ptsPerM>60)||200;const L_=nice*ptsPerM;
+      page.drawRectangle({x:bx+8,y:by+8,width:L_+50,height:22,color:WHITE,opacity:.9});
+      page.drawRectangle({x:bx+14,y:by+16,width:L_,height:5,color:INK});page.drawText(`${nice} m`,{x:bx+20+L_,y:by+15,size:8.5,font:B,color:INK});
+      page.drawRectangle({x:bx+bw-44,y:by+bh-26,width:36,height:18,color:WHITE,opacity:.9});page.drawText('Nord ^',{x:bx+bw-41,y:by+bh-20,size:8,font:B,color:INK});
+    }else{page.drawRectangle({x:bx,y:by,width:bw,height:bh,color:SOFT});page.drawText('Aucun dispositif implanté',{x:bx+10,y:by+bh/2,size:11,font:B,color:MUTE})}
+  }
+  page.drawRectangle({x:bx,y:by,width:bw,height:bh,borderColor:LINE,borderWidth:1});
+  if(proj){S.dev.forEach(d=>{const c=hex(TYPES[d.type].color),Q=d.coords.map(proj);
+    if(TYPES[d.type].geom==='line'){for(let i=1;i<Q.length;i++){page.drawLine({start:Q[i-1],end:Q[i],thickness:4.5,color:WHITE});page.drawLine({start:Q[i-1],end:Q[i],thickness:3,color:c,dashArray:d.type==='gardecorps'?[7,4]:undefined})}}
+    else page.drawCircle({x:Q[0].x,y:Q[0].y,size:5.5,color:c,borderColor:WHITE,borderWidth:1.5});
+    const lp=Q[0],tw=B.widthOfTextAtSize(d.id,7.5);page.drawRectangle({x:lp.x+6,y:lp.y+4,width:tw+6,height:11,color:WHITE});page.drawText(d.id,{x:lp.x+9,y:lp.y+6.5,size:7.5,font:B,color:INK})})}
+  y=by-18;
+  present.forEach(t=>{const ds=S.dev.filter(d=>d.type===t),m=ds.reduce((s,d)=>s+(devLen(d)||0),0);ensure(16);
+    page.drawRectangle({x:M,y:y-2,width:14,height:TYPES[t].geom==='line'?4:10,color:hex(TYPES[t].color)});
+    page.drawText(clean(`${TYPES[t].label} (${TYPES[t].norme}) : ${ds.length} dispositif(s)${m?` - ${m.toFixed(1)} m linéaires`:''}`),{x:M+22,y:y-1,size:9,font:F,color:INK});y-=15});
+  y-=4;para(sat?'Fond : Esri World Imagery. Positions indicatives relevées à la pose ; le plan de récolement du bureau d\'études fait foi pour les cotes.':'Positions indicatives relevées à la pose ; le plan de récolement du bureau d\'études fait foi pour les cotes.',{size:8,color:MUTE});
+
+  /* --- 3 inventaire --- */
+  np('3. Inventaire des dispositifs');
+  table([{t:'Repère',w:42},{t:'Dispositif',w:108},{t:'Fabricant / modèle',w:112},{t:'Lot / série',w:70},{t:'Métré / capacité',w:70},{t:'Observation',w:W-2*M-402}],
+    S.dev.map(d=>{const l=devLen(d);return[d.id,`${TYPES[d.type].label}\n${TYPES[d.type].norme}`,[d.fab,d.ref].filter(Boolean).join(' - ')||'-',d.lot||'-',[l?l.toFixed(1)+' m':'',d.nb?d.nb+' util. max':''].filter(Boolean).join('\n')||'-',d.obs||'-']}),{size:8.5});
+  if(!S.dev.length)para('Aucun dispositif renseigné.');
+
+  /* --- 4 responsabilités --- */
+  np('4. Répartition des responsabilités');
+  para('R = responsable ; P = participe. La conception (plans, notes de calcul, choix des produits) relève du fournisseur et de son bureau d\'études. L\'agence ATTILA réalise la pose conformément au plan et aux notices, et remet le présent dossier. Après réception, l\'exploitation, l\'entretien et les vérifications périodiques relèvent du client.',{size:9});
+  const rc=v=>v==='R'?RED:MUTE;
+  table([{t:'Étape',w:200},{t:'Fournisseur / BE',w:75,color:rc},{t:'Agence ATTILA',w:70,color:rc},{t:'Client',w:55,color:rc},{t:'Appui',w:W-2*M-400}],RACI.map(r=>r.map(x=>x||'-')),{size:8.5});
+
+  /* --- 5 contrôles --- */
+  np('5. Contrôles périodiques et obligations après réception');
+  const verifTxt={client:'Client - organisme ou personne compétente de son choix',agence:`Agence ATTILA - contrat de vérification${S.p.forme?' (technicien formé par le fabricant)':' (technicien à former avant intervention)'}`,fabricant:'Fabricant ou installateur agréé du fabricant',adef:'À définir par le client'}[S.p.verif];
+  table([{t:'Élément',w:170},{t:'Valeur',w:W-2*M-170}],[['Date de réception',fmtD(S.p.reception)],['Périodicité retenue',`${S.p.perio} mois (à confirmer selon notices fabricants)`],['Première vérification au plus tard le',nxt?nxt.toLocaleDateString('fr-FR'):'-'],['Vérificateur prévu',verifTxt]],{size:9});
+  h3('Ce que le client doit faire');
+  ['Intégrer ce dossier à son dossier de maintenance des lieux de travail, qui décrit notamment les moyens d\'arrimage, garde-corps et chemins de circulation permanents en couverture (C. trav. art. R4211-3). Le tenir à disposition de l\'inspection du travail et de la Carsat (R4211-5).',
+   'Faire entretenir et vérifier les dispositifs selon une périodicité appropriée, éliminer sans délai toute défectuosité et consigner vérifications et interventions dans un dossier annexé au DMLT (C. trav. art. R4224-17).',
+   'Ne laisser utiliser les dispositifs que par des intervenants informés des consignes (notice, nombre d\'utilisateurs, zones couvertes) et équipés d\'EPI antichute adaptés et vérifiés par leur employeur.',
+   'Condamner tout dispositif ayant subi une chute ou présentant un défaut jusqu\'à vérification par une personne compétente.',
+   'Transmettre ce dossier au propriétaire ou à l\'occupant suivant en cas de départ des locaux (C. trav. art. R4224-19).'
+  ].forEach(t=>{ensure(24);page.drawText('-',{x:M+2,y:y-9.5,size:9.5,font:B,color:RED});para(t,{indent:12,size:9.5,gap:4})});
+  h3('Engagements de l\'agence ATTILA');
+  para('Pose conforme au plan du bureau d\'études et aux notices des fabricants ; production des fiches de pose et du reportage photo ; remise du présent dossier. L\'agence n\'assure la vérification périodique que dans le cadre d\'un contrat distinct, par un technicien formé.',{size:9.5});
+
+  /* --- 6 bordereau --- */
+  np('6. Bordereau des pièces');
+  const stTxt=d=>(!FILES[d.id]?.length&&!linked(d.id).length&&catDocs(d.id).length&&catDocs(d.id).some(c=>!CATB[c.fiche]))?'Lien fabricant':({ok:'Jointe',na:'Sans objet',opt:'Non applicable',miss:'MANQUANTE'})[status(d)];
+  groups().forEach(g=>{h3(g.label);
+    table([{t:'Annexe',w:44},{t:'Pièce',w:210},{t:'Établie par',w:100},{t:'Fondement',w:W-2*M-434},{t:'Statut',w:80,color:v=>v==='MANQUANTE'?hex('#CC0000'):v==='Jointe'?hex('#38761D'):MUTE}],
+      g.docs.map(d=>[annex[d.id]||'-',d.label,d.who.map(w=>WHO[w]).join(' + '),d.ref,stTxt(d)]),{size:8})});
+
+  /* --- annexes --- */
+  const stamp=(pg,txt)=>{const{width,height}=pg.getSize();const t=clean(txt).slice(0,95),tw=B.widthOfTextAtSize(t,8);pg.drawRectangle({x:8,y:height-20,width:tw+12,height:14,color:RED});pg.drawText(t,{x:14,y:height-16,size:8,font:B,color:WHITE})};
+  for(const g of groups())for(const d of g.docs){const fl=[...(FILES[d.id]||[])];
+    for(const l of linked(d.id)){try{fl.push({name:l.name,kind:l.mime==='application/pdf'?'pdf':'img',bytes:await libBytes(l),w:l.w,h:l.h})}catch(e){}}
+    for(const c of catDocs(d.id)){if(linked(d.id).some(l=>l===libForCat(c)))continue;const b=CATB[c.fiche];
+      if(b)fl.push({name:c.fiche.split('/').pop(),kind:'pdf',bytes:b.bytes});else fl.push({name:c.nom,kind:'renvoi',cat:c})}
+    if(!fl.length)continue;
+    for(const f of fl){const lab=`Annexe ${annex[d.id]} - ${d.label}`;
+      if(f.kind==='renvoi'){np(lab);para(`Fiche technique fabricant : ${f.cat.fab} - ${f.cat.nom} (${f.cat.norme}).`,{font:B});
+        para(`Document publié par le fabricant, téléchargeable à l'adresse suivante :\n${f.cat.fiche}`);para(`Page produit : ${f.cat.page}`,{size:8.5,color:MUTE});
+        para(`Consulté le ${new Date().toLocaleDateString('fr-FR')}. Pour l'intégrer au dossier, l'enregistrer dans la bibliothèque fabricants de l'application.`,{size:8.5,color:MUTE});continue}
+      if(f.kind==='pdf'){try{const src=await PDFDocument.load(f.bytes.slice(),{ignoreEncryption:true});const cp=await pdf.copyPages(src,src.getPageIndices());cp.forEach(p=>{pdf.addPage(p);stamp(p,lab)})}
+        catch(e){np(lab);para(`Le fichier « ${f.name} » n'a pas pu être intégré (PDF protégé ou endommagé). À remettre séparément.`)}}
+      else{np(null);page.drawText(clean(lab),{x:M,y:y-12,size:11,font:B,color:INK});page.drawText(clean(f.name),{x:M,y:y-26,size:8.5,font:F,color:MUTE});
+        const im=await pdf.embedJpg(f.bytes),mw=W-2*M,mh=y-40-50,r=Math.min(mw/f.w,mh/f.h);page.drawImage(im,{x:M+(mw-f.w*r)/2,y:50+(mh-f.h*r),width:f.w*r,height:f.h*r})}}}
+
+  /* --- pied de page --- */
+  const pages=pdf.getPages(),N=pages.length,foot=clean(`${S.c.client||''} ${S.p.ref?'- '+S.p.ref:''}`.trim());
+  pages.forEach((p,i)=>{const{width}=p.getSize();p.drawText(`${i+1} / ${N}`,{x:width-M-30,y:22,size:8,font:F,color:MUTE});if(foot)p.drawText(foot.slice(0,80),{x:M,y:22,size:8,font:F,color:MUTE})});
+  return await pdf.save();
+}
+
+/* ============ INIT ============ */
+renderTools();fillFields();$('#memo').checked=S.memo;go(S.step||1);loadLib();
+</script>
+</body>
+</html>
