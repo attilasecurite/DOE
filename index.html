@@ -135,6 +135,41 @@ table.raci{border-collapse:collapse;width:100%;min-width:640px;font-size:14px}
 .busy{position:fixed;inset:0;background:rgba(30,35,40,.55);display:none;place-items:center;z-index:4000;color:#fff;font-weight:700;font-size:18px;text-align:center;padding:20px}
 .busy.on{display:grid}
 [hidden]{display:none!important}
+.modal{position:fixed;inset:0;background:rgba(30,35,40,.55);z-index:2500;overflow:auto;padding:calc(10px + env(safe-area-inset-top,0px)) 10px calc(90px + env(safe-area-inset-bottom,0px))}
+.modal-in{background:#fff;max-width:860px;margin:0 auto;border-radius:12px;overflow:hidden}
+.modal-h{position:sticky;top:0;z-index:2;background:var(--red);color:#fff;display:flex;align-items:center;gap:10px;padding:12px 16px}
+.modal-h b{flex:1;font-family:"Barlow Condensed",sans-serif;font-size:20px}
+.modal-b{padding:16px}
+.modal fieldset{border:0;margin:0;padding:0;min-width:0}
+.legal{font-size:13px;line-height:1.5;background:#F4F6F7;border-left:4px solid var(--blue);border-radius:8px;padding:10px 12px;margin-bottom:14px}
+canvas.sig{width:100%;max-width:600px;aspect-ratio:10/3;border:1.5px dashed var(--mute);border-radius:8px;background:#fff;touch-action:none;display:block}
+.sigs{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:720px){.sigs{grid-template-columns:1fr 1fr}}
+.ck{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:14px}
+.ck select{padding:8px;border:1.5px solid var(--line);border-radius:8px;font-weight:700;min-width:92px}
+.ck select.OK{border-color:var(--ok);color:var(--ok)}.ck select.NC{border-color:var(--ko);color:var(--ko)}.ck select.SO{color:var(--mute)}
+.thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.thumbs div{position:relative}.thumbs img{width:96px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
+.thumbs button{position:absolute;top:2px;right:2px;background:#fff;border:0;border-radius:50%;width:22px;height:22px;color:var(--ko);font-weight:800;cursor:pointer}
+.radio{display:flex;gap:8px;flex-wrap:wrap}
+.radio label{display:flex;align-items:center;gap:6px;border:1.5px solid var(--line);border-radius:8px;padding:10px 12px;color:var(--ink);font-size:15px;cursor:pointer}
+.radio input{width:18px;height:18px;margin:0}
+.signed{background:#EDF5EA;border:1.5px solid var(--ok);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:14px}
+/* lignes à glisser */
+.sw{position:relative;overflow:hidden;border-radius:10px;margin:6px 0;user-select:none;-webkit-user-select:none}
+.sw-bg{position:absolute;inset:0;display:flex;justify-content:space-between;align-items:center;padding:0 16px;font-weight:800;color:#fff;background:#B7BEC4}
+.sw.dragR .sw-bg{background:var(--ok)}.sw.dragL .sw-bg{background:var(--ko)}
+.sw-fg{position:relative;display:flex;align-items:center;gap:10px;background:#fff;border:1.5px solid var(--line);border-left:6px solid var(--line);border-radius:10px;padding:12px;touch-action:pan-y;cursor:grab;transition:transform .18s ease,background .18s}
+.sw.moving .sw-fg{transition:none}
+.sw-fg .t{flex:1;font-size:15px}
+.sw-fg .st{font-size:12px;font-weight:800;padding:4px 8px;border-radius:12px;background:#EEF0F2;color:var(--mute);white-space:nowrap}
+.sw-fg .so{border:1.5px solid var(--line);background:#fff;border-radius:8px;padding:6px 8px;font-size:12px;font-weight:700;color:var(--mute);cursor:pointer}
+.sw.OK .sw-fg{border-left-color:var(--ok);background:#EDF5EA}.sw.OK .st{background:var(--ok);color:#fff}
+.sw.NC .sw-fg{border-left-color:var(--ko);background:#FBEAEA}.sw.NC .st{background:var(--ko);color:#fff}
+.sw.SO .sw-fg{border-left-color:#B7BEC4;background:#F4F6F7}.sw.SO .t{color:var(--mute)}
+.sw-legend{display:flex;justify-content:space-between;font-size:12px;color:var(--mute);margin:8px 0 2px}
+.dev-prog{margin-left:auto;font-size:13px;font-weight:700;color:var(--mute)}
+textarea{display:block;width:100%;margin-top:4px;padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;font:inherit;font-size:15px;min-height:64px}
 nav.steps button.lib{margin-left:auto;border-left:1px solid rgba(255,255,255,.3)}
 .file.lib{background:#E3ECF7}
 .sugg{margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:13px;color:var(--mute)}
@@ -333,6 +368,9 @@ nav.steps button.lib{margin-left:auto;border-left:1px solid rgba(255,255,255,.3)
   <button class="btn line" id="btnPrev" type="button">Précédent</button>
   <button class="btn red" id="btnNext" type="button">Suivant</button>
 </div></div>
+<div class="modal" id="fm" hidden role="dialog" aria-modal="true"><div class="modal-in">
+  <div class="modal-h"><b id="fmTitle"></b><button class="btn-ghost" id="fmClose" type="button">Fermer</button></div>
+  <div class="modal-b" id="fmBody"></div></div></div>
 <div class="toast" id="toast" role="status"></div>
 <div class="busy" id="busy"><div id="busyTxt">Assemblage du DOE…</div></div>
 
@@ -462,7 +500,7 @@ const fresh=()=>({step:1,c:{adresse:'',lat:null,lng:null,client:'',site:'',conta
 let S; try{S=JSON.parse(localStorage.getItem(KEY))||fresh()}catch(e){S=fresh()}
 S.links=S.links||{};if(/^juva$/i.test(S.p.fournisseur||''))S.p.fournisseur='Ajuva Safety';if(S.p.support==='bac')S.p.support='bac_sec';if(S.memo===undefined)S.memo=true;
 const FILES={}; // docId -> [{name,kind,bytes}]
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S));return true}catch(e){if(!save.w){save.w=1;setTimeout(()=>toast('Mémoire de l\'appareil pleine (photos) : générez le DOE sans tarder'),50)}return false}};
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const getK=k=>k.split('.').reduce((o,x)=>o?.[x],S);
@@ -486,7 +524,7 @@ function go(n){
 $('#steps').addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(b)go(+b.dataset.go)});
 $('#btnPrev').onclick=()=>go(S.step-1);
 $('#btnNext').onclick=()=>go(S.step+1);
-$('#btnNew').onclick=()=>{if(!confirm('Effacer ce chantier et en démarrer un nouveau ?'))return;S=fresh();for(const k in FILES)delete FILES[k];save();fillFields();if(map){map.remove();map=null}renderDevList();go(1)};
+$('#btnNew').onclick=()=>{if(!confirm('Effacer ce chantier et en démarrer un nouveau ?'))return;S=fresh();fInit();for(const k in FILES)delete FILES[k];save();fillFields();if(map){map.remove();map=null}renderDevList();go(1)};
 
 /* ============ CHAMPS ============ */
 function fillFields(){
@@ -638,7 +676,8 @@ function groups(){
 }
 const linked=id=>(S.links[id]||[]).map(x=>LIB.find(l=>l.id===x)).filter(Boolean);
 const catDocs=id=>{const s=LIBSLOT[id];if(!s||s[1]!=='conf')return[];const seen=new Set();return S.dev.filter(d=>d.type===s[0]).map(d=>catById(d.prod)).filter(c=>c&&c.fiche&&!seen.has(c.fiche)&&seen.add(c.fiche))};
-const status=d=>(FILES[d.id]?.length||linked(d.id).length||catDocs(d.id).length)?'ok':S.na[d.id]?'na':d.opt?'opt':'miss';
+const formDone=id=>!!(FORMDOC[id]&&S.forms?.[FORMDOC[id]]?.signedAt);
+const status=d=>(formDone(d.id)||FILES[d.id]?.length||linked(d.id).length||catDocs(d.id).length)?'ok':S.na[d.id]?'na':d.opt?'opt':'miss';
 function stats(){const all=groups().flatMap(g=>g.docs);const need=all.filter(d=>!d.opt);
   const done=need.filter(d=>['ok','na'].includes(status(d))).length;return{all,need,done,missing:need.filter(d=>status(d)==='miss')}}
 function renderDocs(){
@@ -653,7 +692,7 @@ function renderDocs(){
         <div class="files">${(FILES[d.id]||[]).map((f,i)=>`<span class="file">${esc(f.name)}<button type="button" data-rm="${d.id}|${i}" aria-label="Retirer ${esc(f.name)}">×</button></span>`).join('')}${linked(d.id).map(l=>`<span class="file lib">Bibliothèque : ${esc(libTitle(l))}<button type="button" data-unlink="${d.id}|${l.id}" aria-label="Retirer">×</button></span>`).join('')}${catDocs(d.id).map(c=>`<span class="file lib">Catalogue ${esc(c.fab)} : <a href="${c.fiche}" target="_blank" rel="noopener">${esc(c.nom)}</a><span class="src">${libForCat(c)?' — stockée sur Git':' — lien fabricant, à déposer sur Git'}</span></span>`).join('')}</div>
         ${LIBSLOT[d.id]?.[1]==='notice'&&S.dev.some(x=>x.type===LIBSLOT[d.id][0]&&catById(x.prod))?`<div class="src" style="margin-top:6px">Notices ${esc(AF)} réservées à l'espace client : <a href="${AJ_DOC}" target="_blank" rel="noopener">se connecter</a> ou demander au fournisseur.</div>`:''}
         ${LIBSLOT[d.id]&&s!=='ok'?(()=>{const m=libMatches(d.id).slice(0,3);return m.length?`<div class="sugg">Dans la bibliothèque :${m.map(x=>`<button type="button" data-link="${d.id}|${x.l.id}">Joindre ${esc(libTitle(x.l))}</button>`).join('')}</div>`:''})():''}</div>
-      <div class="doc-act"><label class="btn-file">Ajouter<input type="file" multiple accept="application/pdf,image/*" data-up="${d.id}"></label>
+      <div class="doc-act">${FORMDOC[d.id]?`<button type="button" class="btn ${formDone(d.id)?'line':'red'}" data-fopen="${FORMDOC[d.id]}" style="min-height:44px;font-size:14px">${formDone(d.id)?'Signé — ouvrir':'Remplir et signer'}</button>`:''}<label class="btn-file">Ajouter<input type="file" multiple accept="application/pdf,image/*" data-up="${d.id}"></label>
         <label class="na"><input type="checkbox" data-na="${d.id}" ${S.na[d.id]?'checked':''}>Sans objet</label></div></div>`}).join('')}</div>`).join('');
 }
 $('#docGroups').addEventListener('change',async e=>{
@@ -747,6 +786,135 @@ $('#lfFile').addEventListener('change',async e=>{const f=e.target.files[0];e.tar
   if(IDX.some(d=>d.file===file)||PENDING.some(p=>p.file===file))file=file.replace(/\.pdf$/,'_'+Date.now().toString(36)+'.pdf');
   PENDING.push({...m,file,name:f.name,localName:f.name,bytes:new Uint8Array(await f.arrayBuffer())});drawLib();toast('Ajout préparé : publiez-le sur Git')});
 $('#libList').addEventListener('click',e=>{const b=e.target.closest('[data-rmidx]');if(!b)return;const f=b.dataset.rmidx;REMOVED.has(f)?REMOVED.delete(f):REMOVED.add(f);drawLib()});
+/* ============ DOCUMENTS REMPLIS ET SIGNÉS EN LIGNE ============ */
+const FORMDOC={c_pv:'pv',c_attest:'att'};
+const PV_LEGAL="La réception est l'acte par lequel le maître de l'ouvrage déclare accepter l'ouvrage avec ou sans réserves ; elle est prononcée contradictoirement (C. civ. art. 1792-6). Elle fait courir la garantie de parfait achèvement d'un an (art. 1792-6), la garantie de bon fonctionnement d'au moins deux ans des éléments d'équipement dissociables (art. 1792-3) et la responsabilité décennale (art. 1792 et 1792-4-1). Les réserves sont levées par l'entreprise dans les délais convenus. À compter de la réception, l'entretien et la vérification périodique des dispositifs incombent au maître d'ouvrage ou à l'exploitant employeur (C. trav. art. R4224-17), qui les intègre à son dossier de maintenance des lieux de travail (art. R4211-3).";
+const ATT_LEGAL="Références : notices de montage des fabricants ; NF EN 795 (dispositifs d'ancrage) ; NF E85-015, NF E85-016 et NF EN ISO 14122 (garde-corps, échelles, cheminements) ; recommandation CNAM R 430 (dispositifs d'ancrage). La présente attestation porte sur la pose ; elle ne vaut ni note de calcul (établie par le bureau d'études) ni vérification périodique (C. trav. art. R4224-17).";
+const ATT_DECL=f=>`Je soussigné(e) ${f.tech||'...'}, technicien de l'agence ATTILA ${S.c.agence||''}, atteste que les dispositifs listés ci-dessus ont été installés conformément au plan d'implantation du bureau d'études${f.plan?' ('+f.plan+')':''}, aux notices de montage des fabricants et aux règles de l'art, et que les contrôles consignés ont été réalisés à l'issue de la pose.${Object.values(f.dev||{}).some(x=>Object.values(x.c||{}).includes('NC'))?' Les non-conformités relevées sont décrites en observation et doivent être traitées avant toute mise en service.':''}`;
+const ESSAIS={non:'Non requis (tenue du support justifiée par la note de calcul)',faits:'Réalisés - PV joint au DOE',afaire:'À réaliser avant mise en service'};
+const CHECK={_:["Implantation conforme au plan du bureau d'études","Fixations conformes à la notice (type, nombre, entraxes)","Couples de serrage appliqués selon la notice","Étanchéité de la couverture reprise au droit des fixations","Marquage / plaque signalétique en place et lisible"],
+  ligne:["Prétension du câble conforme (indicateur)","Absorbeur d'énergie en place","Franchissement des intermédiaires et angles testé","Tirant d'air compatible avec la note de calcul"],
+  ancrage:["Anneau / plaquette libre et accessible"],
+  gardecorps:["Continuité sans lacune, retours d'extrémité en place","Lisse, sous-lisse et plinthe conformes à la fiche produit","Contrepoids en nombre prévu (si autoportant)"],
+  cheminement:["Continuité du cheminement et surface antidérapante","Protections de rive associées en place"],
+  crinoline:["Crinoline, crosse de sortie et palier conformes","Condamnation d'accès / portillon posé et fonctionnel"]};
+const checks=t=>[...CHECK._,...(CHECK[t]||[])];
+function fInit(){S.forms=S.forms||{};const F=S.forms;
+  F.pv=F.pv||{date:new Date().toISOString().slice(0,10),lieu:'',repC:'',qualC:'',repE:'',qualE:'Chargé d\'affaires',dec:'sans',res:[],refus:'',doe:true,sigC:'',sigE:'',signedAt:'',hash:'',gps:''};
+  F.att=F.att||{tech:'',forme:false,formeDate:'',formeOrg:'',plan:'',essais:'non',dev:{},decl:false,sigT:'',nomV:'',sigV:'',signedAt:'',hash:'',gps:''}}
+fInit();
+const fget=p=>p.split('.').reduce((o,k)=>o?.[k],S.forms);
+const fset=(p,v)=>{const a=p.split('.');let o=S.forms;a.slice(0,-1).forEach(k=>{o[k]=o[k]??(/^\d+$/.test(k)?[]:{});o=o[k]});o[a.at(-1)]=v};
+let FK=null;
+function openForm(k){FK=k;$('#fmTitle').textContent=k==='pv'?'PV de réception des travaux':'Attestation de bonne installation';$('#fm').hidden=false;renderForm();$('#fm').scrollTop=0}
+$('#fmClose').onclick=()=>{$('#fm').hidden=true;FK=null;if(S.step===4)renderDocs()};
+const val=(p,d='')=>esc(fget(p)??d);
+const sigPad=(p,lock)=>`<canvas class="sig" data-sig="${p}" ${lock?'data-lock="1"':''}></canvas>${lock?'':`<button type="button" class="x" data-sigclear="${p}">Effacer la signature</button>`}`;
+const thumbs=(p,lock)=>`<div class="thumbs">${(fget(p)||[]).map((u,i)=>`<div><img src="${u}" alt="Photo ${i+1}">${lock?'':`<button type="button" data-fphrm="${p}|${i}" aria-label="Retirer">×</button>`}</div>`).join('')}</div>${lock?'':`<label class="btn-file" style="margin-top:8px;font-size:13px;min-height:38px">Photo<input type="file" accept="image/*" capture="environment" multiple data-fph="${p}"></label>`}`;
+function renderForm(){const f=S.forms[FK],lock=!!f.signedAt;let body='';
+  const head=lock?`<div class="signed"><b>Signé le ${new Date(f.signedAt).toLocaleString('fr-FR')}</b> — intégré automatiquement au DOE.<br><button type="button" class="x" data-funlock="1" style="padding:6px 0">Modifier (annule les signatures)</button></div>`:'';
+  if(FK==='pv'){
+    if(!f.lieu)f.lieu=S.c.adresse;if(!f.repE)f.repE=S.c.charge;
+    body=`${head}<div class="legal">${esc(PV_LEGAL)}</div><fieldset ${lock?'disabled':''}>
+    <div class="grid2">
+      <label>Date de réception<input type="date" data-fk="pv.date" value="${val('pv.date')}"></label>
+      <label>Lieu<input data-fk="pv.lieu" value="${val('pv.lieu')}"></label>
+      <label>Représentant du maître d'ouvrage<input data-fk="pv.repC" value="${val('pv.repC')}" placeholder="Nom et prénom"></label>
+      <label>Qualité<input data-fk="pv.qualC" value="${val('pv.qualC')}" placeholder="Ex. responsable services généraux"></label>
+      <label>Représentant ATTILA<input data-fk="pv.repE" value="${val('pv.repE')}"></label>
+      <label>Qualité<input data-fk="pv.qualE" value="${val('pv.qualE')}"></label>
+    </div>
+    <h3>Ouvrages réceptionnés (${S.dev.length})</h3>
+    <div class="src">${S.dev.map(d=>`${d.id} — ${TYPES[d.type].label}${d.ref?' — '+esc(d.ref):''}`).join('<br>')||'Aucun dispositif implanté (étape 3).'}</div>
+    <h3>Décision du maître d'ouvrage</h3>
+    <div class="radio">${[['sans','Sans réserve'],['avec','Avec réserves'],['refus','Refus de réception']].map(([v,t])=>`<label><input type="radio" name="dec" data-fk="pv.dec" value="${v}" ${f.dec===v?'checked':''}>${t}</label>`).join('')}</div>
+    ${f.dec==='avec'?`${f.res.map((r,i)=>`<div class="dev" style="margin-top:10px"><div class="dev-h"><b>Réserve ${i+1}</b><button type="button" class="x" data-fdel="pv.res|${i}" style="margin-left:auto">Supprimer</button></div>
+      <label>Description<textarea data-fk="pv.res.${i}.txt">${val('pv.res.'+i+'.txt')}</textarea></label>
+      <label style="margin-top:8px">À lever au plus tard le<input type="date" data-fk="pv.res.${i}.delai" value="${val('pv.res.'+i+'.delai')}"></label>${thumbs('pv.res.'+i+'.photos',lock)}</div>`).join('')}
+      <button type="button" class="btn line" data-fadd="pv.res" style="margin-top:10px">+ Ajouter une réserve</button>`:''}
+    ${f.dec==='refus'?`<label style="margin-top:10px">Motif du refus<textarea data-fk="pv.refus">${val('pv.refus')}</textarea></label>`:''}
+    <label class="chk"><input type="checkbox" data-fk="pv.doe" ${f.doe?'checked':''}> Le DOE est remis au maître d'ouvrage avec le présent procès-verbal</label>
+    </fieldset>
+    <h3>Signatures (sur l'écran, au doigt ou au stylet)</h3>
+    <div class="sigs"><div><label>Maître d'ouvrage — « lu et approuvé »</label>${sigPad('pv.sigC',lock)}</div><div><label>ATTILA</label>${sigPad('pv.sigE',lock)}</div></div>`}
+  else{
+    body=`${head}<div class="legal">${esc(ATT_LEGAL)}</div><fieldset ${lock?'disabled':''}>
+    <div class="grid2">
+      <label>Technicien installateur<input data-fk="att.tech" value="${val('att.tech')}" placeholder="Nom et prénom"></label>
+      <label>Référence du plan BE (n°, indice)<input data-fk="att.plan" value="${val('att.plan')}" placeholder="Ex. CDF62476 ind. B"></label>
+      <label>Essais d'arrachement<select data-fk="att.essais">${Object.entries(ESSAIS).map(([k,t])=>`<option value="${k}" ${f.essais===k?'selected':''}>${t}</option>`).join('')}</select></label>
+      <label>Organisme / fabricant formateur<input data-fk="att.formeOrg" value="${val('att.formeOrg')}"></label>
+      <label>Date de la formation<input type="date" data-fk="att.formeDate" value="${val('att.formeDate')}"></label>
+    </div>
+    <label class="chk"><input type="checkbox" data-fk="att.forme" ${f.forme?'checked':''}> Technicien formé à la pose par le fabricant des dispositifs</label>
+    ${S.dev.map(d=>{const items=checks(d.type),x=f.dev[d.id]||{c:{}};return `<div class="dev" style="margin-top:14px"><div class="dev-h"><span class="chip" style="background:${TYPES[d.type].color}"></span><b>${d.id}</b><span>${TYPES[d.type].label}${d.ref?' — '+esc(d.ref):''}</span><span class="dev-prog" data-prog="${d.id}">${Object.values(x.c||{}).filter(Boolean).length} / ${items.length}</span></div>
+      <div class="sw-legend"><span>← Non conforme</span><span>Conforme →</span></div>
+      ${items.map((t,i)=>{const v=x.c?.[i]||'';return `<div class="sw ${v}" data-ck="att.dev.${d.id}.c.${i}" tabindex="0" role="button" aria-label="${esc(t)} : ${SWL[v]}. Flèche droite conforme, flèche gauche non conforme, S sans objet">
+        <div class="sw-bg"><span>✓ Conforme</span><span>Non conforme ✗</span></div>
+        <div class="sw-fg"><span class="t">${esc(t)}</span><span class="st">${SWL[v]}</span>${lock?'':'<button type="button" class="so" data-so="1">S.O.</button>'}</div></div>`}).join('')}
+      ${lock?'':`<button type="button" class="btn line" data-allok="${d.id}" style="margin-top:6px;min-height:40px;font-size:14px">Tout le reste conforme</button>`}
+      <label style="margin-top:8px">Observation (obligatoire si non-conformité)<textarea data-fk="att.dev.${d.id}.com">${val('att.dev.'+d.id+'.com')}</textarea></label>
+      <div class="src" style="margin-top:8px">Photos : fixations avant recouvrement, vue d'ensemble, plaque signalétique (au moins une).</div>${thumbs('att.dev.'+d.id+'.photos',lock)}</div>`}).join('')||'<p class="empty">Aucun dispositif implanté (étape 3).</p>'}
+    <h3>Déclaration</h3><div class="legal" style="border-left-color:var(--red)">${esc(ATT_DECL(f))}</div>
+    <label class="chk"><input type="checkbox" data-fk="att.decl" ${f.decl?'checked':''}> Je certifie l'exactitude des informations ci-dessus</label>
+    <label style="margin-top:10px">Chef de chantier (visa, facultatif)<input data-fk="att.nomV" value="${val('att.nomV')}"></label>
+    </fieldset>
+    <h3>Signatures</h3><div class="sigs"><div><label>Technicien installateur</label>${sigPad('att.sigT',lock)}</div><div><label>Visa chef de chantier</label>${sigPad('att.sigV',lock)}</div></div>`}
+  body+=lock?'':`<button type="button" class="btn red" data-fsign="1" style="width:100%;margin-top:18px">Valider et signer</button><p class="src">Après signature, le document est verrouillé et intégré au DOE avec sa date, sa position GPS et une empreinte d'intégrité.</p>`;
+  $('#fmBody').innerHTML=body;bindSigs();if(!lock)bindSwipes()}
+const SWL={'':'À contrôler',OK:'Conforme',NC:'Non conforme',SO:'Sans objet'};
+function swSet(row,v){const p=row.dataset.ck;fset(p,v);save();row.className='sw '+v;row.querySelector('.st').textContent=SWL[v];
+  row.setAttribute('aria-label',row.querySelector('.t').textContent+' : '+SWL[v]);navigator.vibrate?.(v==='NC'?[20,40,20]:15);
+  const id=p.split('.')[2],pg=$(`[data-prog="${id}"]`);if(pg){const dv=S.dev.find(d=>d.id===id);pg.textContent=`${Object.values(fget('att.dev.'+id+'.c')||{}).filter(Boolean).length} / ${checks(dv.type).length}`}}
+function bindSwipes(){$$('#fmBody .sw').forEach(row=>{const fg=row.querySelector('.sw-fg');let x0=0,y0=0,dx=0,drag=false,down=false;
+  fg.addEventListener('pointerdown',e=>{if(e.target.closest('.so'))return;down=true;drag=false;x0=e.clientX;y0=e.clientY;dx=0});
+  fg.addEventListener('pointermove',e=>{if(!down)return;const mx=e.clientX-x0,my=e.clientY-y0;
+    if(!drag&&Math.abs(mx)>10&&Math.abs(mx)>Math.abs(my)){drag=true;row.classList.add('moving');fg.setPointerCapture(e.pointerId)}
+    if(!drag)return;dx=Math.max(-160,Math.min(160,mx));fg.style.transform=`translateX(${dx}px)`;row.classList.toggle('dragR',dx>0);row.classList.toggle('dragL',dx<0)});
+  const end=()=>{if(!down)return;down=false;row.classList.remove('moving','dragR','dragL');fg.style.transform='';
+    if(drag){if(dx>70)swSet(row,'OK');else if(dx<-70)swSet(row,'NC')}drag=false;dx=0};
+  fg.addEventListener('pointerup',end);fg.addEventListener('pointercancel',end);
+  row.querySelector('.so')?.addEventListener('click',e=>{e.stopPropagation();swSet(row,row.classList.contains('SO')?'':'SO')});
+  row.addEventListener('keydown',e=>{if(e.key==='ArrowRight'){e.preventDefault();swSet(row,'OK')}else if(e.key==='ArrowLeft'){e.preventDefault();swSet(row,'NC')}else if(e.key.toLowerCase()==='s')swSet(row,'SO')})})}
+function bindSigs(){$$('#fmBody canvas.sig').forEach(c=>{const p=c.dataset.sig,g=c.getContext('2d');c.width=600;c.height=180;g.fillStyle='#fff';g.fillRect(0,0,600,180);
+  const v=fget(p);if(v){const im=new Image();im.onload=()=>g.drawImage(im,0,0);im.src=v}
+  if(c.dataset.lock)return;g.lineWidth=3;g.lineCap='round';g.lineJoin='round';g.strokeStyle='#1E2328';let dr=false;
+  const pos=e=>{const r=c.getBoundingClientRect();return[(e.clientX-r.left)*600/r.width,(e.clientY-r.top)*180/r.height]};
+  c.onpointerdown=e=>{dr=true;c.setPointerCapture(e.pointerId);const[x,y]=pos(e);g.beginPath();g.moveTo(x,y)};
+  c.onpointermove=e=>{if(!dr)return;const[x,y]=pos(e);g.lineTo(x,y);g.stroke()};
+  c.onpointerup=c.onpointercancel=()=>{if(!dr)return;dr=false;fset(p,c.toDataURL('image/png'));save()}})}
+function fOnInput(e){const el=e.target,p=el.dataset.fk;if(!p)return;
+  fset(p,el.type==='checkbox'?el.checked:el.value);save();
+  if(el.tagName==='SELECT'&&p.includes('.c.'))el.className=el.value;
+  if(p==='pv.dec'||p==='att.decl'||p==='att.tech'||p==='att.plan'||(el.tagName==='SELECT'&&p.includes('.c.')&&e.type==='change'))if(e.type==='change'&&p==='pv.dec')renderForm()}
+$('#fmBody').addEventListener('input',fOnInput);$('#fmBody').addEventListener('change',async e=>{fOnInput(e);const el=e.target;
+  if(el.dataset.fph){const p=el.dataset.fph,arr=fget(p)||[];for(const f of [...el.files]){try{arr.push((await toJpeg(f,1000)).dataUrl)}catch(err){}}fset(p,arr);save();renderForm()}});
+$('#fmBody').addEventListener('click',async e=>{const t=e.target.closest('button');if(!t)return;const f=S.forms[FK];
+  if(t.dataset.allok){const id=t.dataset.allok;$$(`#fmBody .sw[data-ck^="att.dev.${id}.c."]`).forEach(r=>{if(!fget(r.dataset.ck))swSet(r,'OK')});return}
+  if(t.dataset.so)return;
+  if(t.dataset.sigclear){fset(t.dataset.sigclear,'');save();renderForm()}
+  else if(t.dataset.fphrm){const[p,i]=t.dataset.fphrm.split('|');fget(p).splice(+i,1);save();renderForm()}
+  else if(t.dataset.fadd){(fget(t.dataset.fadd)).push({txt:'',delai:'',photos:[]});save();renderForm()}
+  else if(t.dataset.fdel){const[p,i]=t.dataset.fdel.split('|');fget(p).splice(+i,1);save();renderForm()}
+  else if(t.dataset.funlock){if(!confirm('Modifier le document annule les signatures. Continuer ?'))return;Object.assign(f,FK==='pv'?{sigC:'',sigE:''}:{sigT:'',sigV:''},{signedAt:'',hash:'',gps:''});save();renderForm()}
+  else if(t.dataset.fsign){const err=fCheck(FK);if(err.length){alert('À compléter avant signature :\n- '+err.join('\n- '));return}
+    f.gps=await new Promise(r=>{if(!navigator.geolocation)return r('');navigator.geolocation.getCurrentPosition(p=>r(`${p.coords.latitude.toFixed(5)}, ${p.coords.longitude.toFixed(5)}`),()=>r(''),{timeout:5000,maximumAge:60000})});
+    f.signedAt=new Date().toISOString();f.hash='';f.hash=await sha256(JSON.stringify(f));save();renderForm();toast('Document signé et intégré au DOE')}});
+async function sha256(s){try{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}catch(e){return''}}
+function fCheck(k){const f=S.forms[k],e=[];
+  if(!S.dev.length)e.push('au moins un dispositif implanté (étape 3)');
+  if(k==='pv'){if(!f.date)e.push('date de réception');if(!f.repC)e.push('représentant du maître d\'ouvrage');if(!f.repE)e.push('représentant ATTILA');
+    if(f.dec==='avec'&&(!f.res.length||f.res.some(r=>!r.txt)))e.push('description de chaque réserve');if(f.dec==='avec'&&f.res.some(r=>!r.delai))e.push('délai de levée de chaque réserve');
+    if(f.dec==='refus'&&!f.refus)e.push('motif du refus');if(!f.sigC)e.push('signature du maître d\'ouvrage');if(!f.sigE)e.push('signature ATTILA')}
+  else{if(!f.tech)e.push('nom du technicien');
+    S.dev.forEach(d=>{const x=f.dev[d.id]||{c:{}},n=checks(d.type).length;
+      if(Object.values(x.c||{}).filter(Boolean).length<n)e.push(`${d.id} : tous les points de contrôle`);
+      if(Object.values(x.c||{}).includes('NC')&&!x.com)e.push(`${d.id} : observation sur la non-conformité`);
+      if(!x.photos?.length)e.push(`${d.id} : au moins une photo`)});
+    if(!f.decl)e.push('case de certification');if(!f.sigT)e.push('signature du technicien')}
+  return e}
+$('#docGroups').addEventListener('click',e=>{const b=e.target.closest('[data-fopen]');if(b)openForm(b.dataset.fopen)});
+
 /* ============ ÉTAPE 5 ============ */
 $('#raciBody').innerHTML=RACI.map(r=>`<tr><td>${esc(r[0])}</td>${[1,2,3].map(i=>`<td class="c ${r[i]}">${r[i]}</td>`).join('')}<td class="rf">${esc(r[4])}</td></tr>`).join('');
 function nextCtrl(){if(!S.p.reception)return null;const d=new Date(S.p.reception+'T12:00:00');d.setMonth(d.getMonth()+(+S.p.perio||12));return d}
@@ -774,6 +942,24 @@ $('#btnPdf').onclick=async()=>{
 
 /* ============ PDF ============ */
 const clean=s=>String(s??'').replace(/[’‘]/g,"'").replace(/[“”]/g,'"').replace(/[–—]/g,'-').replace(/œ/g,'oe').replace(/Œ/g,'OE').replace(/…/g,'...').replace(/×/g,'x').replace(/[^\x20-\x7E\xA0-\xFF\n]/g,'');
+/* Fond aérien du plan : assemblage de tuiles dans un canvas (IGN puis Esri), sans dépendre d'un service d'export */
+async function aerialJpeg(x0,y0,x1,y1,Wpx,Hpx){
+  const E=20037508.342789244;
+  const SRC=[
+    {n:'IGN Géoplateforme (orthophotographies)',max:19,u:(z,x,y)=>`https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/jpeg&TILEMATRIX=${z}&TILEROW=${y}&TILECOL=${x}`},
+    {n:'Esri World Imagery',max:19,u:(z,x,y)=>`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`}];
+  for(const s of SRC){try{
+    const res=(x1-x0)/Wpx,z=Math.min(s.max,Math.max(1,Math.round(Math.log2(2*E/256/res)))),ts=2*E/2**z;
+    const tx0=Math.floor((x0+E)/ts),tx1=Math.floor((x1+E)/ts),ty0=Math.floor((E-y1)/ts),ty1=Math.floor((E-y0)/ts);
+    if((tx1-tx0+1)*(ty1-ty0+1)>80)continue;
+    const c=document.createElement('canvas');c.width=Wpx;c.height=Hpx;const g=c.getContext('2d');g.fillStyle='#d5dadf';g.fillRect(0,0,Wpx,Hpx);
+    const k=Wpx/(x1-x0);let ok=0,tot=0;const jobs=[];
+    for(let tx=tx0;tx<=tx1;tx++)for(let ty=ty0;ty<=ty1;ty++){tot++;jobs.push(new Promise(r=>{const im=new Image();im.crossOrigin='anonymous';
+      const t=setTimeout(r,10000);im.onload=()=>{clearTimeout(t);g.drawImage(im,(-E+tx*ts-x0)*k,(y1-(E-ty*ts))*k,ts*k+1,ts*k+1);ok++;r()};
+      im.onerror=()=>{clearTimeout(t);r()};im.src=s.u(z,tx,ty)}))}
+    await Promise.all(jobs);if(!tot||ok<tot*0.75)continue;
+    return{bytes:b64bytes(c.toDataURL('image/jpeg',.85)),src:s.n}}catch(e){}}
+  return null}
 async function buildPDF(){
   const {PDFDocument,StandardFonts,rgb}=PDFLib;
   const hex=h=>{const n=parseInt(h.slice(1),16);return rgb((n>>16&255)/255,(n>>8&255)/255,(n&255)/255)};
@@ -803,7 +989,7 @@ async function buildPDF(){
     try{const r=await fetch(GIT_DIR+base(c.fiche),{cache:'no-cache'});if(r.ok&&/pdf|octet/i.test(r.headers?.get?.('content-type')||'pdf')){CATB[c.fiche]={bytes:new Uint8Array(await r.arrayBuffer()),src:'git'};continue}}catch(e){}
     try{const r=await fetch(c.fiche);if(!r.ok)throw 0;CATB[c.fiche]={bytes:new Uint8Array(await r.arrayBuffer()),src:'web'}}catch(e){CATB[c.fiche]=null}}
   MISSING=Object.keys(CATB).filter(k=>!CATB[k]).map(base);
-  let an=0;const annex={};groups().forEach(g=>g.docs.forEach(d=>{if(FILES[d.id]?.length||linked(d.id).length||catDocs(d.id).length)annex[d.id]='A'+(++an)}));
+  let an=0;const annex={};groups().forEach(g=>g.docs.forEach(d=>{if(formDone(d.id)||FILES[d.id]?.length||linked(d.id).length||catDocs(d.id).length)annex[d.id]='A'+(++an)}));
 
   /* --- couverture --- */
   page=pdf.addPage([W,H]);
@@ -849,8 +1035,8 @@ async function buildPDF(){
       const cx=(x0+x1)/2,cy=(y0+y1)/2;let dx=Math.max(x1-x0,60)*1.35,dy=Math.max(y1-y0,60)*1.35;const asp=bh/bw;if(dy/dx<asp)dy=dx*asp;else dx=dy/asp;
       x0=cx-dx/2;x1=cx+dx/2;y0=cy-dy/2;y1=cy+dy/2;
       proj=p=>{const q=L.CRS.EPSG3857.project(L.latLng(p[0],p[1]));return{x:bx+(q.x-x0)/dx*bw,y:by+(q.y-y0)/dy*bh}};
-      try{const url=`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/export?bbox=${x0},${y0},${x1},${y1}&bboxSR=3857&imageSR=3857&size=1400,${Math.round(1400*asp)}&format=jpg&f=image`;
-        const r=await fetch(url);if(!r.ok)throw new Error('export');const im=await pdf.embedJpg(new Uint8Array(await r.arrayBuffer()));page.drawImage(im,{x:bx,y:by,width:bw,height:bh});sat=true}
+      try{const a=await aerialJpeg(x0,y0,x1,y1,1400,Math.round(1400*asp));if(!a)throw new Error('fond');
+        const im=await pdf.embedJpg(a.bytes);page.drawImage(im,{x:bx,y:by,width:bw,height:bh});sat=a.src}
       catch(e){page.drawRectangle({x:bx,y:by,width:bw,height:bh,color:SOFT});page.drawText(clean('Fond satellite indisponible - plan schématique à l\'échelle'),{x:bx+8,y:by+bh-16,size:8.5,font:F,color:MUTE})}
       // échelle
       const ptsPerM=bw/dx/Math.cos(latRef*Math.PI/180);const nice=[5,10,20,50,100,200].find(v=>v*ptsPerM>60)||200;const L_=nice*ptsPerM;
@@ -868,7 +1054,7 @@ async function buildPDF(){
   present.forEach(t=>{const ds=S.dev.filter(d=>d.type===t),m=ds.reduce((s,d)=>s+(devLen(d)||0),0);ensure(16);
     page.drawRectangle({x:M,y:y-2,width:14,height:TYPES[t].geom==='line'?4:10,color:hex(TYPES[t].color)});
     page.drawText(clean(`${TYPES[t].label} (${TYPES[t].norme}) : ${ds.length} dispositif(s)${m?` - ${m.toFixed(1)} m linéaires`:''}`),{x:M+22,y:y-1,size:9,font:F,color:INK});y-=15});
-  y-=4;para(sat?'Fond : Esri World Imagery. Positions indicatives relevées à la pose ; le plan de récolement du bureau d\'études fait foi pour les cotes.':'Positions indicatives relevées à la pose ; le plan de récolement du bureau d\'études fait foi pour les cotes.',{size:8,color:MUTE});
+  y-=4;para(sat?`Fond : ${sat}. Positions`+' indicatives relevées à la pose ; le plan de récolement du bureau d\'études fait foi pour les cotes.':'Positions indicatives relevées à la pose ; le plan de récolement du bureau d\'études fait foi pour les cotes.',{size:8,color:MUTE});
 
   /* --- 3 inventaire --- */
   np('3. Inventaire des dispositifs');
@@ -898,17 +1084,51 @@ async function buildPDF(){
 
   /* --- 6 bordereau --- */
   np('6. Bordereau des pièces');
-  const stTxt=d=>(!FILES[d.id]?.length&&!linked(d.id).length&&catDocs(d.id).length&&catDocs(d.id).some(c=>!CATB[c.fiche]))?'Lien fabricant':({ok:'Jointe',na:'Sans objet',opt:'Non applicable',miss:'MANQUANTE'})[status(d)];
+  const stTxt=d=>formDone(d.id)?'Signé en ligne':(!FILES[d.id]?.length&&!linked(d.id).length&&catDocs(d.id).length&&catDocs(d.id).some(c=>!CATB[c.fiche]))?'Lien fabricant':({ok:'Jointe',na:'Sans objet',opt:'Non applicable',miss:'MANQUANTE'})[status(d)];
   groups().forEach(g=>{h3(g.label);
     table([{t:'Annexe',w:44},{t:'Pièce',w:210},{t:'Établie par',w:100},{t:'Fondement',w:W-2*M-434},{t:'Statut',w:80,color:v=>v==='MANQUANTE'?hex('#CC0000'):v==='Jointe'?hex('#38761D'):MUTE}],
       g.docs.map(d=>[annex[d.id]||'-',d.label,d.who.map(w=>WHO[w]).join(' + '),d.ref,stTxt(d)]),{size:8})});
 
   /* --- annexes --- */
   const stamp=(pg,txt)=>{const{width,height}=pg.getSize();const t=clean(txt).slice(0,95),tw=B.widthOfTextAtSize(t,8);pg.drawRectangle({x:8,y:height-20,width:tw+12,height:14,color:RED});pg.drawText(t,{x:14,y:height-16,size:8,font:B,color:WHITE})};
+  /* --- documents remplis et signés en ligne --- */
+  const pPhotos=async(list,cols=3)=>{const gw=(W-2*M-(cols-1)*8)/cols,gh=gw*.75;
+    for(let i=0;i<list.length;i+=cols){ensure(gh+8);for(let j=0;j<cols&&i+j<list.length;j++){try{const im=await pdf.embedJpg(b64bytes(list[i+j])),r=Math.min(gw/im.width,gh/im.height);
+      page.drawImage(im,{x:M+j*(gw+8)+(gw-im.width*r)/2,y:y-gh+(gh-im.height*r)/2,width:im.width*r,height:im.height*r})}catch(e){}}y-=gh+8}};
+  const pSigs=async(list)=>{ensure(128);const w=(W-2*M-10)/2;
+    for(let i=0;i<list.length;i++){const[t,n,s,when]=list[i],x=M+i*(w+10);
+      page.drawRectangle({x,y:y-118,width:w,height:118,borderColor:LINE,borderWidth:1});
+      page.drawText(clean(t),{x:x+6,y:y-13,size:8.5,font:B,color:INK});page.drawText(clean(n||''),{x:x+6,y:y-25,size:8.5,font:F,color:INK});
+      if(s){try{const im=await pdf.embedPng(b64bytes(s)),r=Math.min((w-12)/im.width,70/im.height);page.drawImage(im,{x:x+6,y:y-100,width:im.width*r,height:im.height*r})}catch(e){}}
+      if(when)page.drawText(clean(when),{x:x+6,y:y-112,size:7.5,font:F,color:MUTE})}y-=128};
+  const pSeal=f=>{para(`Signé électroniquement le ${new Date(f.signedAt).toLocaleString('fr-FR')}${f.gps?` - position ${f.gps}`:''}. Empreinte d'intégrité SHA-256 : ${f.hash||'non disponible'}`,{size:7,color:MUTE})};
+  async function pdfPV(lab){const f=S.forms.pv;np(lab);
+    para('Procès-verbal de réception des travaux',{size:14,font:B});
+    table([{t:'Rubrique',w:170},{t:'Information',w:W-2*M-170}],[['Maître d\'ouvrage',S.c.client||'-'],['Représenté par',`${f.repC} (${f.qualC||'-'})`],['Entreprise',`ATTILA - ${S.c.agence||''}`],['Représentée par',`${f.repE} (${f.qualE||'-'})`],
+      ['Chantier',[S.c.site,f.lieu||S.c.adresse].filter(Boolean).join(' - ')],['Référence',S.p.ref||'-'],['Date de réception',fmtD(f.date)]],{size:9});
+    h3('Ouvrages réceptionnés');
+    table([{t:'Repère',w:50},{t:'Dispositif',w:150},{t:'Produit',w:W-2*M-270},{t:'Métré',w:70}],S.dev.map(d=>{const l=devLen(d);return[d.id,TYPES[d.type].label,[d.fab,d.ref].filter(Boolean).join(' - ')||'-',l?l.toFixed(1)+' m':'-']}),{size:8.5});
+    h3('Décision du maître d\'ouvrage');
+    para({sans:'La réception est prononcée SANS RÉSERVE.',avec:`La réception est prononcée AVEC ${f.res.length} RÉSERVE(S) listée(s) ci-dessous, à lever dans les délais indiqués.`,refus:'La réception est REFUSÉE pour le motif suivant : '+f.refus}[f.dec],{font:B,size:10});
+    if(f.dec==='avec'){for(const[i,r]of f.res.entries()){para(`Réserve ${i+1} - ${r.txt}  (levée au plus tard le ${fmtD(r.delai)})`,{size:9.5});if(r.photos?.length)await pPhotos(r.photos,4)}}
+    if(f.doe)para('Le dossier des ouvrages exécutés (DOE) est remis au maître d\'ouvrage avec le présent procès-verbal.',{size:9.5});
+    h3('Portée de la réception');para(PV_LEGAL,{size:8.5});
+    ensure(170);h3('Signatures');await pSigs([['Pour le maître d\'ouvrage - lu et approuvé',`${f.repC}, ${f.qualC||''}`,f.sigC,fmtD(f.date)],['Pour ATTILA',`${f.repE}, ${f.qualE||''}`,f.sigE,fmtD(f.date)]]);pSeal(f)}
+  async function pdfAtt(lab){const f=S.forms.att;np(lab);
+    para('Attestation de bonne installation des dispositifs de sécurité',{size:14,font:B});
+    table([{t:'Rubrique',w:170},{t:'Information',w:W-2*M-170}],[['Installateur',`ATTILA - ${S.c.agence||''}`],['Technicien',f.tech],['Formation fabricant',f.forme?`Oui - ${f.formeOrg||''} ${f.formeDate?'('+fmtD(f.formeDate)+')':''}`:'Non déclarée'],
+      ['Plan d\'implantation BE',f.plan||'-'],['Fabricant / fournisseur',S.p.fournisseur||'-'],['Chantier',[S.c.client,S.c.site,S.c.adresse].filter(Boolean).join(' - ')],['Essais d\'arrachement',ESSAIS[f.essais]]],{size:9});
+    for(const d of S.dev){const x=f.dev[d.id]||{c:{}},items=checks(d.type);h3(`${d.id} - ${TYPES[d.type].label}${d.ref?' - '+d.ref:''}`);
+      table([{t:'Point de contrôle',w:W-2*M-90},{t:'Résultat',w:90,color:v=>v==='Non conforme'?hex('#CC0000'):v==='Conforme'?hex('#38761D'):MUTE}],items.map((t,i)=>[t,{OK:'Conforme',NC:'Non conforme',SO:'Sans objet'}[x.c[i]]||'-']),{size:8.5});
+      if(x.com)para('Observation : '+x.com,{size:9});if(x.photos?.length)await pPhotos(x.photos,3)}
+    h3('Déclaration');para(ATT_DECL(f),{size:9.5});para(ATT_LEGAL,{size:8,color:MUTE});
+    ensure(170);h3('Signatures');await pSigs([['Le technicien installateur',f.tech,f.sigT,fmtD(f.signedAt?.slice(0,10))],['Visa du chef de chantier',f.nomV,f.sigV,f.sigV?fmtD(f.signedAt?.slice(0,10)):'']]);pSeal(f)}
+
   for(const g of groups())for(const d of g.docs){const fl=[...(FILES[d.id]||[])];
     for(const l of linked(d.id)){try{fl.push({name:l.name,kind:l.mime==='application/pdf'?'pdf':'img',bytes:await libBytes(l),w:l.w,h:l.h})}catch(e){}}
     for(const c of catDocs(d.id)){if(linked(d.id).some(l=>l===libForCat(c)))continue;const b=CATB[c.fiche];
       if(b)fl.push({name:c.fiche.split('/').pop(),kind:'pdf',bytes:b.bytes});else fl.push({name:c.nom,kind:'renvoi',cat:c})}
+    if(formDone(d.id))await (FORMDOC[d.id]==='pv'?pdfPV:pdfAtt)(`Annexe ${annex[d.id]} - ${d.label}`);
     if(!fl.length)continue;
     for(const f of fl){const lab=`Annexe ${annex[d.id]} - ${d.label}`;
       if(f.kind==='renvoi'){np(lab);para(`Fiche technique fabricant : ${f.cat.fab} - ${f.cat.nom} (${f.cat.norme}).`,{font:B});
