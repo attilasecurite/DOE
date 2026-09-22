@@ -254,10 +254,9 @@ nav.steps button.lib{margin-left:auto;border-left:1px solid rgba(255,255,255,.3)
     <div class="tags" style="margin-top:10px">
       <span class="tag lv REG">Réglementaire</span><span class="tag lv CONTRAT">Contractuel</span><span class="tag lv NORME">Norme / notice fabricant</span><span class="tag lv REC">Bonne pratique</span>
     </div>
-    <p class="src">Les références normatives (NF EN 795, NF E85-015/016, NF EN ISO 14122, NF EN 516) sont à confirmer dans leur version en vigueur. Les fiches et notices fabricants mémorisées sont conservées dans la bibliothèque ; les autres fichiers (fiches de pose, photos, PV) restent sur cet appareil jusqu'à la génération du DOE.</p>
+    <p class="src">Les références normatives (NF EN 795, NF E85-015/016, NF EN ISO 14122, NF EN 516) sont à confirmer dans leur version en vigueur. Les fiches et notices fabricants sont lues dans la bibliothèque stockée sur Git (onglet « Bibliothèque fabricants ») ; les pièces propres au chantier (fiches de pose, photos, PV) ajoutées ici ne servent qu'à ce DOE et ne sont conservées nulle part.</p>
     <div class="doc-tools">
-      <label class="chk"><input type="checkbox" id="memo"> Mémoriser les fiches techniques et notices ajoutées dans la bibliothèque fabricants</label>
-      <button class="btn line" id="btnAuto" type="button">Remplir depuis la bibliothèque</button>
+      <button class="btn line" id="btnAuto" type="button">Remplir depuis la bibliothèque Git</button>
     </div>
     <div id="docGroups"></div>
   </div>
@@ -306,30 +305,26 @@ nav.steps button.lib{margin-left:auto;border-left:1px solid rgba(255,255,255,.3)
 <section class="step" data-step="6">
   <div class="card">
     <h2><span class="n">B</span>Bibliothèque fabricants</h2>
-    <p class="lead">Fiches techniques, déclarations de conformité et notices : enregistrées une fois, proposées automatiquement sur chaque DOE. Les documents « Réseau QHSE » sont publiés par le service QHSE pour toutes les agences ; les autres sont conservés sur cet appareil.</p>
+    <p class="lead">Toutes les fiches et notices sont stockées dans le dépôt Git de l'app, dossier <b>fiches/</b>, et nulle part ailleurs. L'app les lit en direct ; pour ajouter ou retirer un document, on modifie le dépôt.</p>
+    <div id="gitState"></div>
+    <h3>Fiches du catalogue fabricants</h3>
+    <div id="catState"></div>
+    <h3>Autres documents (notices, attestations…) — fiches/index.json</h3>
+    <div id="libList"></div>
+    <h3>Préparer un ajout au dépôt</h3>
     <div class="lib-add">
       <div class="grid2">
-        <label>Fabricant<input id="lfFab" list="fournList" placeholder="Ex. Ajuva Safety"></label>
         <label class="full">Produit du catalogue (pré-remplit les champs)<select id="lfProd"></select></label>
-        <label>Dispositif
-          <select id="lfType"></select></label>
-        <label>Type de document
-          <select id="lfKind"></select></label>
-        <label>Modèle / gamme<input id="lfMod" placeholder="Ex. ligne de vie câble inox"></label>
-        <label>Version / indice<input id="lfVer" placeholder="Ex. rév. C"></label>
+        <label>Fabricant<input id="lfFab" list="fournList" placeholder="Ex. Ajuva Safety"></label>
+        <label>Dispositif<select id="lfType"></select></label>
+        <label>Type de document<select id="lfKind"></select></label>
+        <label>Modèle / gamme<input id="lfMod"></label>
+        <label>Version / indice<input id="lfVer" placeholder="Ex. 2023 V1"></label>
         <label>Date du document<input type="date" id="lfDate"></label>
       </div>
-      <label class="btn-file" style="margin-top:12px">Ajouter un document (PDF ou image)<input type="file" id="lfFile" multiple accept="application/pdf,image/*"></label>
+      <label class="btn-file" style="margin-top:12px">Choisir le PDF<input type="file" id="lfFile" accept="application/pdf"></label>
     </div>
-    <div class="row">
-      <label>Rechercher<input id="libQ" placeholder="Fabricant, modèle, dispositif…"></label>
-    </div>
-    <div class="map-foot">
-      <button class="btn line" id="btnExport" type="button">Exporter la bibliothèque</button>
-      <label class="btn-file" style="font-size:14px">Importer une bibliothèque<input type="file" id="libImport" accept=".json,application/json"></label>
-    </div>
-    <p class="src">Pour publier sur tout le réseau : exporter, renommer le fichier en <b>bibliotheque.json</b> et le déposer à côté de l'app sur GitHub Pages.</p>
-    <div id="libList"></div>
+    <div id="pending"></div>
   </div>
 </section>
 </main>
@@ -569,6 +564,8 @@ $('#tools').addEventListener('click',e=>{const b=e.target.closest('[data-tool]')
   if(tool)toast(TYPES[tool].geom==='line'?'Touchez les points du tracé puis « Terminer le tracé »':'Touchez la vue pour placer le dispositif')});
 function onMapClick(e){
   if(!tool)return;const ll=[e.latlng.lat,e.latlng.lng];
+  if(S.mode==='map'&&map.getZoom()<17){toast('Zoomez sur la toiture avant de placer un dispositif');return}
+  if(S.mode==='map'&&draft.length&&L.latLng(draft.at(-1)).distanceTo(L.latLng(ll))>300){toast('Segment de plus de 300 m : point ignoré');return}
   if(TYPES[tool].geom==='point')addDevice(tool,[ll]);else{draft.push(ll);drawDraft()}
 }
 function drawDraft(){
@@ -645,7 +642,6 @@ const status=d=>(FILES[d.id]?.length||linked(d.id).length||catDocs(d.id).length)
 function stats(){const all=groups().flatMap(g=>g.docs);const need=all.filter(d=>!d.opt);
   const done=need.filter(d=>['ok','na'].includes(status(d))).length;return{all,need,done,missing:need.filter(d=>status(d)==='miss')}}
 function renderDocs(){
-  $('#memo').checked=!!S.memo;
   const st=stats(),pct=st.need.length?Math.round(st.done/st.need.length*100):0;
   $('#docPct').textContent=pct+' %';$('#docGauge').style.width=pct+'%';
   $('#docTxt').textContent=`${st.done} / ${st.need.length} pièces attendues fournies ou sans objet${S.dev.length?'':' — aucun dispositif implanté (étape 3)'}`;
@@ -654,7 +650,7 @@ function renderDocs(){
       <div><div class="doc-t">${esc(d.label)}${d.opt?' <span class="src">(si applicable)</span>':''}</div>
         <div class="tags">${d.who.map(w=>`<span class="tag ${w}">${WHO[w]}</span>`).join('')}<span class="tag lv ${d.level}">${LVL[d.level]}</span></div>
         <div class="ref">${esc(d.ref)}</div>
-        <div class="files">${(FILES[d.id]||[]).map((f,i)=>`<span class="file">${esc(f.name)}<button type="button" data-rm="${d.id}|${i}" aria-label="Retirer ${esc(f.name)}">×</button></span>`).join('')}${linked(d.id).map(l=>`<span class="file lib">Bibliothèque : ${esc(libTitle(l))}<button type="button" data-unlink="${d.id}|${l.id}" aria-label="Retirer">×</button></span>`).join('')}${catDocs(d.id).map(c=>`<span class="file lib">Catalogue ${esc(c.fab)} : <a href="${c.fiche}" target="_blank" rel="noopener">${esc(c.nom)}</a><button type="button" data-memcat="${c.id}" title="Enregistrer le PDF dans la bibliothèque" style="color:var(--blue)">⤓</button></span>`).join('')}</div>
+        <div class="files">${(FILES[d.id]||[]).map((f,i)=>`<span class="file">${esc(f.name)}<button type="button" data-rm="${d.id}|${i}" aria-label="Retirer ${esc(f.name)}">×</button></span>`).join('')}${linked(d.id).map(l=>`<span class="file lib">Bibliothèque : ${esc(libTitle(l))}<button type="button" data-unlink="${d.id}|${l.id}" aria-label="Retirer">×</button></span>`).join('')}${catDocs(d.id).map(c=>`<span class="file lib">Catalogue ${esc(c.fab)} : <a href="${c.fiche}" target="_blank" rel="noopener">${esc(c.nom)}</a><span class="src">${libForCat(c)?' — stockée sur Git':' — lien fabricant, à déposer sur Git'}</span></span>`).join('')}</div>
         ${LIBSLOT[d.id]?.[1]==='notice'&&S.dev.some(x=>x.type===LIBSLOT[d.id][0]&&catById(x.prod))?`<div class="src" style="margin-top:6px">Notices ${esc(AF)} réservées à l'espace client : <a href="${AJ_DOC}" target="_blank" rel="noopener">se connecter</a> ou demander au fournisseur.</div>`:''}
         ${LIBSLOT[d.id]&&s!=='ok'?(()=>{const m=libMatches(d.id).slice(0,3);return m.length?`<div class="sugg">Dans la bibliothèque :${m.map(x=>`<button type="button" data-link="${d.id}|${x.l.id}">Joindre ${esc(libTitle(x.l))}</button>`).join('')}</div>`:''})():''}</div>
       <div class="doc-act"><label class="btn-file">Ajouter<input type="file" multiple accept="application/pdf,image/*" data-up="${d.id}"></label>
@@ -664,10 +660,6 @@ $('#docGroups').addEventListener('change',async e=>{
   const up=e.target.dataset.up,na=e.target.dataset.na;
   if(na){S.na[na]=e.target.checked;save();renderDocs();return}
   if(!up)return;const fs=[...e.target.files];
-  if(LIBSLOT[up]&&S.memo){for(const f of fs){try{const[dt,k]=LIBSLOT[up],dv=S.dev.find(x=>x.type===dt)||{};
-      const it=await addToLib(f,{fab:dv.fab||S.p.fournisseur||'',dtype:dt,kind:k,modele:dv.ref||'',version:'',date:''});
-      if(it)(S.links[up]=S.links[up]||[]).push(it.id)}catch(err){toast(`${f.name} : lecture impossible`)}}
-    save();renderDocs();toast('Enregistré dans la bibliothèque fabricants');return}
   for(const f of fs){try{
     if(f.type==='application/pdf'||/\.pdf$/i.test(f.name)){(FILES[up]=FILES[up]||[]).push({name:f.name,kind:'pdf',bytes:new Uint8Array(await f.arrayBuffer())})}
     else if(f.type.startsWith('image/')){const r=await toJpeg(f,1800);(FILES[up]=FILES[up]||[]).push({name:f.name,kind:'img',bytes:b64bytes(r.dataUrl),w:r.w,h:r.h})}
@@ -680,100 +672,81 @@ $('#docGroups').addEventListener('click',e=>{
   if(rm){const[id,i]=rm.dataset.rm.split('|');FILES[id].splice(+i,1)}
   else if(ul){const[id,x]=ul.dataset.unlink.split('|');S.links[id]=(S.links[id]||[]).filter(v=>v!==x);save()}
   else if(lk){const[id,x]=lk.dataset.link.split('|');S.links[id]=[...(S.links[id]||[]),x];save()}
-  else if(e.target.closest('[data-memcat]')){memCat(catById(e.target.closest('[data-memcat]').dataset.memcat));return}
   else return;renderDocs()});
-$('#memo').addEventListener('change',e=>{S.memo=e.target.checked;save()});
 $('#btnAuto').onclick=()=>{let n=0;groups().forEach(g=>g.docs.forEach(d=>{if(!LIBSLOT[d.id]||status(d)==='ok'||S.na[d.id])return;
   const m=libMatches(d.id).filter(x=>x.score>=2);if(m.length){S.links[d.id]=[m[0].l.id];n++}}));save();renderDocs();
   toast(n?`${n} pièce(s) jointe(s) depuis la bibliothèque`:'Aucun document correspondant au fabricant des dispositifs')};
 
-/* ============ BIBLIOTHÈQUE FABRICANTS ============ */
+/* ============ BIBLIOTHÈQUE FABRICANTS : stockage Git uniquement ============ */
 const LIBSLOT={a_conf:['ancrage','conf'],a_notice:['ancrage','notice'],l_conf:['ligne','conf'],l_notice:['ligne','notice'],g_conf:['gardecorps','conf'],g_notice:['gardecorps','notice'],h_conf:['cheminement','conf'],h_notice:['cheminement','notice'],e_conf:['crinoline','conf'],e_notice:['crinoline','notice']};
 const KIND={conf:'Fiche technique / déclaration de conformité',notice:'Notice (installation, utilisation, entretien)',essai:"Rapport d'essais / certificat",autre:'Autre document fabricant'};
-let LIB=[];
-const idb=(()=>{let p;const open=()=>p||(p=new Promise((res,rej)=>{const r=indexedDB.open('attila_doe_lib',1);r.onupgradeneeded=()=>r.result.createObjectStore('docs',{keyPath:'id'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}));
-  const tx=async(mode,fn)=>{const db=await open();return new Promise((res,rej)=>{const t=db.transaction('docs',mode);const q=fn(t.objectStore('docs'));t.oncomplete=()=>res(q&&q.result);t.onerror=()=>rej(t.error)})};
-  return{all:()=>tx('readonly',s=>s.getAll()),put:v=>tx('readwrite',s=>s.put(v)),del:id=>tx('readwrite',s=>s.delete(id))}})();
+const GIT_DIR='fiches/';
+let LIB=[],IDX=[],GIT_OK=null,PENDING=[],MISSING=[];const REMOVED=new Set();
+const base=u=>String(u).split('/').pop();
+const norm=s=>String(s||'').toLowerCase().trim();
+const slug=s=>norm(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
 const libTitle=l=>[l.fab,TYPES[l.dtype]?.short,{conf:'fiche',notice:'notice',essai:'essais',autre:'doc'}[l.kind],l.modele,l.version,l.date?l.date.slice(0,4):''].filter(Boolean).join(' · ');
 const isOld=l=>l.date&&(Date.now()-new Date(l.date))/(365.25*864e5)>3;
-const norm=s=>String(s||'').toLowerCase().trim();
 function libMatches(docId){const[dt,k]=LIBSLOT[docId];const devs=S.dev.filter(d=>d.type===dt);
   const fabs=new Set([...devs.map(d=>norm(d.fab)),norm(S.p.fournisseur)].filter(Boolean)),refs=devs.map(d=>norm(d.ref)).filter(Boolean);
   return LIB.filter(l=>l.dtype===dt&&l.kind===k).map(l=>({l,score:(fabs.has(norm(l.fab))?2:0)+(l.modele&&refs.some(r=>r.includes(norm(l.modele))||norm(l.modele).includes(r))?3:0)}))
     .sort((a,b)=>b.score-a.score||String(b.l.date).localeCompare(String(a.l.date)))}
-async function addToLib(f,meta){
-  const id='loc:'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);let it;
-  if(f.type==='application/pdf'||/\.pdf$/i.test(f.name))it={...meta,id,name:f.name,mime:'application/pdf',blob:new Blob([await f.arrayBuffer()],{type:'application/pdf'})};
-  else if(f.type.startsWith('image/')){const r=await toJpeg(f,1800);it={...meta,id,name:f.name,mime:'image/jpeg',w:r.w,h:r.h,blob:new Blob([b64bytes(r.dataUrl)],{type:'image/jpeg'})}}
-  else{toast(`${f.name} : format non pris en charge`);return null}
-  it.src='local';it.added=new Date().toISOString().slice(0,10);
-  try{await idb.put(it)}catch(e){toast('Stockage impossible sur cet appareil (navigation privée ?)');return null}
-  LIB.push(it);return it}
-const libForCat=c=>LIB.find(l=>l.fiche===c.fiche||(norm(l.modele)===norm(c.nom)&&l.kind==='conf'));
-async function memCat(c){if(!c)return;if(libForCat(c)){toast('Déjà dans la bibliothèque');return}
-  try{const r=await fetch(c.fiche);if(!r.ok)throw 0;const b=await r.blob();
-    const it={id:'loc:'+Date.now().toString(36),fab:c.fab,dtype:c.dtype,kind:'conf',modele:c.nom,version:(c.fiche.match(/_(20\d\d)(_V\d)?/)||[])[0]?.replace(/^_/,'').replace('_',' ')||'',date:'',name:c.fiche.split('/').pop(),mime:'application/pdf',fiche:c.fiche,blob:new Blob([b],{type:'application/pdf'}),src:'local',added:new Date().toISOString().slice(0,10)};
-    await idb.put(it);LIB.push(it);toast('Fiche enregistrée dans la bibliothèque');renderDocs()}
-  catch(e){window.open(c.fiche,'_blank');toast('Le site du fabricant bloque le téléchargement direct : enregistrez le PDF ouvert puis ajoutez-le dans « Bibliothèque fabricants » (produit pré-sélectionnable).')}}
-async function libBytes(l){if(l.blob)return new Uint8Array(await l.blob.arrayBuffer());throw new Error('document indisponible')}
-const toB64=async blob=>{const u=new Uint8Array(await blob.arrayBuffer());let s='';for(let i=0;i<u.length;i+=32768)s+=String.fromCharCode.apply(null,u.subarray(i,i+32768));return btoa(s)};
-const fromB64=(b,mime)=>new Blob([Uint8Array.from(atob(b),c=>c.charCodeAt(0))],{type:mime});
+const libForCat=c=>LIB.find(l=>l.fiche&&l.fiche===c.fiche);
+async function libBytes(l){const r=await fetch(l.url,{cache:'no-cache'});if(!r.ok)throw new Error('absent du dépôt : '+l.url);return new Uint8Array(await r.arrayBuffer())}
 async function loadLib(){
-  let local=[],net=[];try{local=await idb.all()||[]}catch(e){}
-  try{const r=await fetch('bibliotheque.json',{cache:'no-cache'});if(r.ok){const j=await r.json();net=(j.docs||[]).map(d=>({...d,id:'net:'+d.id,src:'reseau',blob:fromB64(d.data,d.mime),data:undefined}))}}catch(e){}
-  LIB=[...net,...local];
-  if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
+  LIB=[];IDX=[];
+  try{const r=await fetch(GIT_DIR+'index.json',{cache:'no-cache'});if(r.ok){IDX=(await r.json()).docs||[]}GIT_OK=r.ok||r.status===404}catch(e){GIT_OK=false}
+  IDX.forEach(d=>LIB.push({...d,id:'git:'+d.file,url:GIT_DIR+d.file,src:'git',fiche:CATALOG.find(c=>c.fiche&&base(c.fiche)===d.file)?.fiche}));
+  if(GIT_OK){const fiches=[...new Set(CATALOG.filter(c=>c.fiche).map(c=>c.fiche))];
+    await Promise.all(fiches.map(async f=>{const b=base(f);if(LIB.some(l=>l.file===b))return;
+      try{const r=await fetch(GIT_DIR+b,{method:'HEAD',cache:'no-cache'});if(r.ok){const c=CATALOG.find(x=>x.fiche===f);
+        LIB.push({id:'git:'+b,file:b,url:GIT_DIR+b,fab:c.fab,dtype:c.dtype,kind:'conf',modele:c.nom,version:(b.match(/20\d\d(_V\d+)?/)||[''])[0].replace('_',' '),date:'',fiche:f,src:'git',auto:true})}}catch(e){}}))}
   if(S.step===4)renderDocs();if(S.step===6)renderLib();
 }
 function renderLib(){
   $('#lfType').innerHTML=Object.entries(TYPES).map(([k,t])=>`<option value="${k}">${t.label}</option>`).join('');
   $('#lfKind').innerHTML=Object.entries(KIND).map(([k,t])=>`<option value="${k}">${t}</option>`).join('');
+  $('#lfProd').innerHTML='<option value="">— Aucun (document hors catalogue) —</option>'+Object.keys(TYPES).map(t=>{const cs=CATALOG.filter(c=>c.dtype===t);return cs.length?`<optgroup label="${TYPES[t].label}">${cs.map(c=>`<option value="${c.id}">${esc(c.fab+' — '+c.nom)}</option>`).join('')}</optgroup>`:''}).join('');
   if(!$('#lfFab').value)$('#lfFab').value=S.p.fournisseur||'';
-  $('#lfProd').innerHTML='<option value="">— Aucun (saisie libre) —</option>'+Object.keys(TYPES).map(t=>{const cs=CATALOG.filter(c=>c.dtype===t);return cs.length?`<optgroup label="${TYPES[t].label}">${cs.map(c=>`<option value="${c.id}">${esc(c.fab+' — '+c.nom)}</option>`).join('')}</optgroup>`:''}).join('');
   drawLib()}
 function drawLib(){
-  const q=norm($('#libQ').value),by={};
-  LIB.filter(l=>!q||norm([l.fab,l.modele,l.version,TYPES[l.dtype]?.label,KIND[l.kind],l.name].join(' ')).includes(q)).forEach(l=>{(by[l.fab||'Sans fabricant']=by[l.fab||'Sans fabricant']||[]).push(l)});
-  const fabs=Object.keys(by).sort();
-  $('#libList').innerHTML=fabs.length?fabs.map(f=>`<div class="lib-fab"><h3>${esc(f)} <span class="src">(${by[f].length})</span></h3>${by[f].map(l=>`<div class="li">
-    <div class="li-h"><b>${esc(KIND[l.kind]||l.kind)}${l.modele?' — '+esc(l.modele):''}</b>
+  $('#gitState').innerHTML=GIT_OK===false?`<div class="hint ko"><b>Dépôt Git inaccessible.</b> Ouvrez l'app depuis son adresse GitHub Pages (et non en fichier local) pour lire le dossier fiches/.</div>`
+    :`<div class="hint ok">Dépôt Git joignable : ${LIB.length} document(s) disponibles pour les DOE.</div>`;
+  const fiches=[...new Set(CATALOG.filter(c=>c.fiche).map(c=>c.fiche))],ok=fiches.filter(f=>LIB.some(l=>l.fiche===f));
+  $('#catState').innerHTML=`<p class="src">${ok.length} / ${fiches.length} fiches déposées dans fiches/. Pour compléter : télécharger la fiche chez le fabricant et la déposer <b>sans la renommer</b> dans fiches/ — elle est reconnue automatiquement.</p>`+
+    fiches.map(f=>{const cs=CATALOG.filter(c=>c.fiche===f),has=LIB.some(l=>l.fiche===f);return `<div class="li"><div class="li-h"><b>${esc(base(f))}</b>
+      <span class="tag" style="background:${has?'var(--ok)':'var(--ko)'};color:#fff">${has?'Sur Git':'À déposer'}</span>
+      ${has?`<a class="btn line" href="${GIT_DIR+base(f)}" target="_blank" rel="noopener" style="min-height:36px;padding:6px 10px;font-size:13px;text-decoration:none">Ouvrir</a>`:`<a class="btn line" href="${f}" target="_blank" rel="noopener" style="min-height:36px;padding:6px 10px;font-size:13px;text-decoration:none">Télécharger chez ${esc(cs[0].fab)}</a>`}</div>
+      <div class="src">${cs.map(c=>esc(c.nom)).join(' ; ')}</div></div>`}).join('');
+  const others=LIB.filter(l=>!l.auto);
+  $('#libList').innerHTML=others.length?others.map(l=>`<div class="li"><div class="li-h"><b>${esc(KIND[l.kind]||l.kind)}${l.modele?' — '+esc(l.modele):''}</b>
       <span class="tag" style="background:${TYPES[l.dtype]?.color};color:#fff">${esc(TYPES[l.dtype]?.label||l.dtype)}</span>
       ${l.version?`<span class="tag">${esc(l.version)}</span>`:''}${l.date?`<span class="tag">${fmtD(l.date)}</span>`:''}
       ${isOld(l)?'<span class="tag old">Plus de 3 ans : vérifier la version</span>':''}
-      <span class="tag ${l.src==='reseau'?'net':''}">${l.src==='reseau'?'Réseau QHSE':'Cet appareil'}</span>
-      <button type="button" class="btn line" data-open="${l.id}" style="min-height:36px;padding:6px 10px;font-size:13px">Ouvrir</button>
-      ${l.src==='local'?`<button type="button" class="x" data-ldel="${l.id}">Supprimer</button>`:''}</div>
-    <div class="src">${esc(l.name)}</div>
-    ${l.src==='local'?`<div class="grid2">
-      <label>Fabricant<input data-lid="${l.id}" data-lf="fab" value="${esc(l.fab)}"></label>
-      <label>Modèle / gamme<input data-lid="${l.id}" data-lf="modele" value="${esc(l.modele)}"></label>
-      <label>Version / indice<input data-lid="${l.id}" data-lf="version" value="${esc(l.version)}"></label>
-      <label>Date du document<input type="date" data-lid="${l.id}" data-lf="date" value="${esc(l.date)}"></label></div>`:''}</div>`).join('')}</div>`).join('')
-    :'<p class="empty" style="margin-top:14px">Bibliothèque vide. Ajoutez les fiches et notices de vos fabricants ci-dessus, ou cochez « Mémoriser » à l\'étape 4 : chaque document joint sera réutilisable.</p>'}
-$('#libQ').addEventListener('input',drawLib);
-$('#lfProd').addEventListener('change',e=>{const c=catById(e.target.value);if(!c)return;$('#lfFab').value=c.fab;$('#lfType').value=c.dtype;$('#lfKind').value='conf';$('#lfMod').value=c.nom;$('#lfVer').value=(c.fiche?.match(/_(20\d\d)(_V\d)?\.pdf/)||[])[0]?.replace(/^_|\.pdf$/g,'').replace('_',' ')||''});
-$('#lfFile').addEventListener('change',async e=>{const fs=[...e.target.files];e.target.value='';
-  const pc=catById($('#lfProd').value);
-  const meta={fiche:pc?.fiche||'',fab:$('#lfFab').value.trim(),dtype:$('#lfType').value,kind:$('#lfKind').value,modele:$('#lfMod').value.trim(),version:$('#lfVer').value.trim(),date:$('#lfDate').value};
-  if(!meta.fab){toast('Renseignez le fabricant');return}
-  let n=0;for(const f of fs)if(await addToLib(f,meta))n++;drawLib();if(n)toast(`${n} document(s) ajouté(s)`)});
-$('#libList').addEventListener('click',async e=>{
-  const o=e.target.closest('[data-open]'),d=e.target.closest('[data-ldel]');
-  if(o){const l=LIB.find(x=>x.id===o.dataset.open);if(l?.blob){const u=URL.createObjectURL(l.blob);window.open(u,'_blank');setTimeout(()=>URL.revokeObjectURL(u),60000)}}
-  if(d){if(!confirm('Supprimer ce document de la bibliothèque ?'))return;await idb.del(d.dataset.ldel).catch(()=>{});LIB=LIB.filter(x=>x.id!==d.dataset.ldel);drawLib()}});
-$('#libList').addEventListener('change',async e=>{const el=e.target;if(!el.dataset.lid)return;const l=LIB.find(x=>x.id===el.dataset.lid);if(!l)return;
-  l[el.dataset.lf]=el.value.trim();try{await idb.put(l)}catch(err){}if(el.dataset.lf==='fab')drawLib()});
-$('#btnExport').onclick=async()=>{const loc=LIB.filter(l=>l.src==='local');if(!loc.length){toast('Aucun document local à exporter');return}
-  $('#busyTxt').textContent='Export de la bibliothèque…';$('#busy').classList.add('on');
-  try{const docs=[];for(const l of loc){const{blob,src,...m}=l;docs.push({...m,id:l.id.replace(/^loc:/,''),data:await toB64(blob)})}
-    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({app:'attila-doe',v:1,exported:new Date().toISOString(),docs})],{type:'application/json'}));
-    a.download=`bibliotheque_fabricants_${new Date().toISOString().slice(0,10)}.json`;document.body.appendChild(a);a.click();a.remove();toast(`${docs.length} document(s) exporté(s)`)}
-  finally{$('#busy').classList.remove('on');$('#busyTxt').textContent='Assemblage du DOE…'}};
-$('#libImport').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
-  try{const j=JSON.parse(await f.text());let n=0;
-    for(const d of j.docs||[]){const id='loc:'+d.id;if(LIB.some(x=>x.id===id))continue;const{data,...m}=d;const it={...m,id,src:'local',blob:fromB64(data,d.mime)};await idb.put(it);LIB.push(it);n++}
-    drawLib();toast(`${n} document(s) importé(s)`)}catch(err){toast('Fichier de bibliothèque illisible')}});
-
+      <a class="btn line" href="${l.url}" target="_blank" rel="noopener" style="min-height:36px;padding:6px 10px;font-size:13px;text-decoration:none">Ouvrir</a>
+      <button type="button" class="x" data-rmidx="${esc(l.file)}">${REMOVED.has(l.file)?'Annuler le retrait':'Retirer'}</button></div>
+      <div class="src">${esc(l.fab)} — fiches/${esc(l.file)}</div></div>`).join('')
+    :'<p class="empty">Aucun document hors catalogue. Les notices de montage (espace client fabricant) s\'ajoutent ci-dessous.</p>';
+  const changes=PENDING.length+REMOVED.size;
+  $('#pending').innerHTML=changes?`<div class="hint warn"><b>${changes} modification(s) à publier sur Git</b>
+      ${PENDING.map(p=>`<div class="src">+ fiches/${esc(p.file)} (${esc(p.localName)})</div>`).join('')}${[...REMOVED].map(f=>`<div class="src">− fiches/${esc(f)} (supprimer aussi le PDF du dépôt)</div>`).join('')}
+      <div class="map-foot"><button class="btn red" id="btnIdx" type="button">Télécharger index.json</button>${PENDING.length?'<button class="btn line" id="btnPdfs" type="button">Télécharger les PDF renommés</button>':''}</div>
+      <div class="src" style="margin-top:8px">Puis sur GitHub : dossier fiches/ → Add file → Upload files → déposer index.json et les PDF → Commit. L'app les voit au prochain chargement.</div></div>`:'';
+  const bi=$('#btnIdx'),bp=$('#btnPdfs');
+  if(bi)bi.onclick=()=>{const docs=[...IDX.filter(d=>!REMOVED.has(d.file)),...PENDING.map(({bytes,localName,...m})=>m)];
+    dl(new Blob([JSON.stringify({app:'attila-doe',v:2,updated:new Date().toISOString().slice(0,10),docs},null,1)],{type:'application/json'}),'index.json')};
+  if(bp)bp.onclick=()=>PENDING.forEach((p,i)=>setTimeout(()=>dl(new Blob([p.bytes],{type:'application/pdf'}),p.file),i*400));
+}
+function dl(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
+$('#lfProd').addEventListener('change',e=>{const c=catById(e.target.value);if(!c)return;$('#lfFab').value=c.fab;$('#lfType').value=c.dtype;$('#lfKind').value='notice';$('#lfMod').value=c.nom});
+$('#lfFile').addEventListener('change',async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
+  if(!(f.type==='application/pdf'||/\.pdf$/i.test(f.name))){toast('PDF uniquement');return}
+  const m={fab:$('#lfFab').value.trim(),dtype:$('#lfType').value,kind:$('#lfKind').value,modele:$('#lfMod').value.trim(),version:$('#lfVer').value.trim(),date:$('#lfDate').value};
+  if(!m.fab){toast('Renseignez le fabricant');return}
+  let file=[slug(m.fab),m.dtype,m.kind,slug(m.modele),slug(m.version)].filter(Boolean).join('_')+'.pdf';
+  if(IDX.some(d=>d.file===file)||PENDING.some(p=>p.file===file))file=file.replace(/\.pdf$/,'_'+Date.now().toString(36)+'.pdf');
+  PENDING.push({...m,file,name:f.name,localName:f.name,bytes:new Uint8Array(await f.arrayBuffer())});drawLib();toast('Ajout préparé : publiez-le sur Git')});
+$('#libList').addEventListener('click',e=>{const b=e.target.closest('[data-rmidx]');if(!b)return;const f=b.dataset.rmidx;REMOVED.has(f)?REMOVED.delete(f):REMOVED.add(f);drawLib()});
 /* ============ ÉTAPE 5 ============ */
 $('#raciBody').innerHTML=RACI.map(r=>`<tr><td>${esc(r[0])}</td>${[1,2,3].map(i=>`<td class="c ${r[i]}">${r[i]}</td>`).join('')}<td class="rf">${esc(r[4])}</td></tr>`).join('');
 function nextCtrl(){if(!S.p.reception)return null;const d=new Date(S.p.reception+'T12:00:00');d.setMonth(d.getMonth()+(+S.p.perio||12));return d}
@@ -794,7 +767,7 @@ $('#btnPdf').onclick=async()=>{
   $('#busy').classList.add('on');
   try{const bytes=await buildPDF();const blob=new Blob([bytes],{type:'application/pdf'});const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);a.download=`DOE_securisation_${(S.p.ref||S.c.client||'chantier').replace(/[^\w-]+/g,'_')}_${new Date().toISOString().slice(0,10)}.pdf`;
-    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);toast('DOE généré');}
+    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);toast(MISSING.length?`DOE généré — ${MISSING.length} fiche(s) non trouvée(s) sur Git : ${MISSING.join(', ')}`:'DOE généré');}
   catch(err){console.error(err);toast('Échec de la génération : '+(err.message||err))}
   finally{$('#busy').classList.remove('on')}
 };
@@ -826,9 +799,10 @@ async function buildPDF(){
   const st=stats(),complete=!st.missing.length,present=Object.keys(TYPES).filter(t=>S.dev.some(d=>d.type===t));
   const nxt=nextCtrl();
   // annex numbering
-  const CATB={};for(const g of groups())for(const d of g.docs)for(const c of catDocs(d.id)){if(c.fiche in CATB)continue;
-    const l=libForCat(c);if(l){try{CATB[c.fiche]={bytes:await libBytes(l),src:'lib'};continue}catch(e){}}
+  await loadLib();const CATB={};for(const g of groups())for(const d of g.docs)for(const c of catDocs(d.id)){if(c.fiche in CATB)continue;
+    try{const r=await fetch(GIT_DIR+base(c.fiche),{cache:'no-cache'});if(r.ok&&/pdf|octet/i.test(r.headers?.get?.('content-type')||'pdf')){CATB[c.fiche]={bytes:new Uint8Array(await r.arrayBuffer()),src:'git'};continue}}catch(e){}
     try{const r=await fetch(c.fiche);if(!r.ok)throw 0;CATB[c.fiche]={bytes:new Uint8Array(await r.arrayBuffer()),src:'web'}}catch(e){CATB[c.fiche]=null}}
+  MISSING=Object.keys(CATB).filter(k=>!CATB[k]).map(base);
   let an=0;const annex={};groups().forEach(g=>g.docs.forEach(d=>{if(FILES[d.id]?.length||linked(d.id).length||catDocs(d.id).length)annex[d.id]='A'+(++an)}));
 
   /* --- couverture --- */
@@ -939,7 +913,7 @@ async function buildPDF(){
     for(const f of fl){const lab=`Annexe ${annex[d.id]} - ${d.label}`;
       if(f.kind==='renvoi'){np(lab);para(`Fiche technique fabricant : ${f.cat.fab} - ${f.cat.nom} (${f.cat.norme}).`,{font:B});
         para(`Document publié par le fabricant, téléchargeable à l'adresse suivante :\n${f.cat.fiche}`);para(`Page produit : ${f.cat.page}`,{size:8.5,color:MUTE});
-        para(`Consulté le ${new Date().toLocaleDateString('fr-FR')}. Pour l'intégrer au dossier, l'enregistrer dans la bibliothèque fabricants de l'application.`,{size:8.5,color:MUTE});continue}
+        para(`Consulté le ${new Date().toLocaleDateString('fr-FR')}. Fichier attendu dans le dépôt : ${GIT_DIR}${base(f.cat.fiche)} (${GIT_OK===false?'dépôt Git inaccessible depuis cette adresse':'introuvable dans le dépôt'}).`,{size:8.5,color:MUTE});continue}
       if(f.kind==='pdf'){try{const src=await PDFDocument.load(f.bytes.slice(),{ignoreEncryption:true});const cp=await pdf.copyPages(src,src.getPageIndices());cp.forEach(p=>{pdf.addPage(p);stamp(p,lab)})}
         catch(e){np(lab);para(`Le fichier « ${f.name} » n'a pas pu être intégré (PDF protégé ou endommagé). À remettre séparément.`)}}
       else{np(null);page.drawText(clean(lab),{x:M,y:y-12,size:11,font:B,color:INK});page.drawText(clean(f.name),{x:M,y:y-26,size:8.5,font:F,color:MUTE});
@@ -952,7 +926,7 @@ async function buildPDF(){
 }
 
 /* ============ INIT ============ */
-renderTools();fillFields();$('#memo').checked=S.memo;go(S.step||1);loadLib();
+renderTools();fillFields();go(S.step||1);loadLib();
 </script>
 </body>
 </html>
