@@ -135,6 +135,11 @@ table.raci{border-collapse:collapse;width:100%;min-width:640px;font-size:14px}
 .busy{position:fixed;inset:0;background:rgba(30,35,40,.55);display:none;place-items:center;z-index:4000;color:#fff;font-weight:700;font-size:18px;text-align:center;padding:20px}
 .busy.on{display:grid}
 [hidden]{display:none!important}
+.sync{display:flex;align-items:center;gap:8px;font-size:12px;color:rgba(255,255,255,.9)}
+.sync .dot{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.5);flex:0 0 9px}
+.sync.on .dot{background:#7ED321}.sync.wait .dot{background:#FFD24A}.sync.err .dot{background:#2b2b2b}
+.linkbox{background:#F4F6F7;border:1.5px solid var(--line);border-radius:8px;padding:10px 12px;margin-top:10px;word-break:break-all;font-size:13px}
+.linkbox b{display:block;font-size:14px;margin-bottom:4px}
 .modal{position:fixed;inset:0;background:rgba(30,35,40,.55);z-index:2500;overflow:auto;padding:calc(10px + env(safe-area-inset-top,0px)) 10px calc(90px + env(safe-area-inset-bottom,0px))}
 .modal-in{background:#fff;max-width:860px;margin:0 auto;border-radius:12px;overflow:hidden}
 .modal-h{position:sticky;top:0;z-index:2;background:var(--red);color:#fff;display:flex;align-items:center;gap:10px;padding:12px 16px}
@@ -169,6 +174,8 @@ canvas.sig{width:100%;max-width:600px;aspect-ratio:10/3;border:1.5px dashed var(
 .sw.SO .sw-fg{border-left-color:#B7BEC4;background:#F4F6F7}.sw.SO .t{color:var(--mute)}
 .sw-legend{display:flex;justify-content:space-between;font-size:12px;color:var(--mute);margin:8px 0 2px}
 .dev-prog{margin-left:auto;font-size:13px;font-weight:700;color:var(--mute)}
+details.det{border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;background:#F8F9FA}
+details.det summary{font-weight:700;font-size:14px;cursor:pointer}
 textarea{display:block;width:100%;margin-top:4px;padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;font:inherit;font-size:15px;min-height:64px}
 nav.steps button.lib{margin-left:auto;border-left:1px solid rgba(255,255,255,.3)}
 .file.lib{background:#E3ECF7}
@@ -193,6 +200,8 @@ nav.steps button.lib{margin-left:auto;border-left:1px solid rgba(255,255,255,.3)
 <header class="top">
   <div class="top-row">
     <h1>DOE sécurisation de toiture<small id="hdrSub">Nouveau chantier</small></h1>
+    <span class="sync" id="syncState" hidden><span class="dot"></span><span id="syncTxt"></span></span>
+    <button class="btn-ghost" id="btnLink" type="button">Lien de reprise</button>
     <button class="btn-ghost" id="btnNew" type="button">Nouveau chantier</button>
   </div>
   <nav class="steps" id="steps" aria-label="Étapes">
@@ -494,19 +503,69 @@ const RACI=[
 
 /* ============ ÉTAT ============ */
 const KEY='attila_doe_securisation_v1';
+/* URL du déploiement Apps Script (/exec). Vide = sauvegarde locale seulement. */
+const API_URL='https://script.google.com/macros/s/AKfycbwWOrgoTgVjLXbt7AuyijQtV9biFaH9rWon14EWaFYsFQ0IARQ6wRp46_X33NFjZw-o/exec';
+const API=new URLSearchParams(location.search).get('api')||API_URL;
+const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const fresh=()=>({step:1,c:{adresse:'',lat:null,lng:null,client:'',site:'',contact:'',agence:'',charge:''},
   p:{ref:'',fournisseur:'Ajuva Safety',be:'',support:'bac_sec',debut:'',reception:'',perio:'12',verif:'client',forme:false},
-  mode:'map',img:null,dev:[],na:{},cnt:{},links:{},memo:true});
+  mode:'map',img:null,dev:[],na:{},cnt:{},links:{},memo:true,did:newId()});
 let S; try{S=JSON.parse(localStorage.getItem(KEY))||fresh()}catch(e){S=fresh()}
-S.links=S.links||{};if(/^juva$/i.test(S.p.fournisseur||''))S.p.fournisseur='Ajuva Safety';if(S.p.support==='bac')S.p.support='bac_sec';if(S.memo===undefined)S.memo=true;
+S.links=S.links||{};S.did=S.did||newId();if(/^juva$/i.test(S.p.fournisseur||''))S.p.fournisseur='Ajuva Safety';if(S.p.support==='bac')S.p.support='bac_sec';if(S.memo===undefined)S.memo=true;
 const FILES={}; // docId -> [{name,kind,bytes}]
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S));return true}catch(e){if(!save.w){save.w=1;setTimeout(()=>toast('Mémoire de l\'appareil pleine (photos) : générez le DOE sans tarder'),50)}return false}};
+const save=()=>{queueSync();try{localStorage.setItem(KEY,JSON.stringify(S));return true}catch(e){if(!save.w){save.w=1;setTimeout(()=>toast('Mémoire de l\'appareil pleine (photos) : générez le DOE sans tarder'),50)}return false}};
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const getK=k=>k.split('.').reduce((o,x)=>o?.[x],S);
 const setK=(k,v)=>{const a=k.split('.');let o=S;a.slice(0,-1).forEach(x=>o=o[x]);o[a.at(-1)]=v};
 function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('on');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('on'),2600)}
 const fmtD=d=>d?new Date(d+'T12:00:00').toLocaleDateString('fr-FR'):'—';
+
+/* ============ SAUVEGARDE EN LIGNE ============ */
+let syncT=null,syncing=false,dirty=false,lastSync=0;
+const syncOn=()=>!!API;
+function setSync(cls,txt){const e=$('#syncState');if(!e)return;e.hidden=!syncOn();e.className='sync '+cls;$('#syncTxt').textContent=txt}
+function queueSync(){if(!syncOn())return;dirty=true;setSync('wait','Modifications en attente');clearTimeout(syncT);syncT=setTimeout(pushSync,2500)}
+function meta(){const st=(typeof stats==='function'&&S.dev.length)?stats():null;
+  return{agence:S.c.agence,client:S.c.client,site:S.c.site,adresse:S.c.adresse,reference:S.p.ref,etape:S.step,
+    nbDisp:S.dev.length,metres:+S.dev.reduce((s,d)=>s+(devLen(d)||0),0).toFixed(1),
+    piecesOk:st?st.done:0,piecesAttendues:st?st.need.length:0,
+    pv:!!S.forms?.pv?.signedAt,att:!!S.forms?.att?.signedAt,reg:!!S.forms?.reg?.signedAt}}
+async function api(body){const r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});
+  if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();if(j.ok===false)throw new Error(j.error||'refus du serveur');return j}
+async function pushSync(opt){
+  if(!syncOn()||syncing)return false;syncing=true;dirty=false;setSync('wait','Enregistrement…');
+  try{await api({action:'save',id:S.did,data:JSON.stringify(S),meta:{...meta(),doeGenere:!!opt?.doe}});
+    lastSync=Date.now();setSync('on','Enregistré '+new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}));
+    return true}
+  catch(e){setSync('err','Hors ligne — gardé sur l\'appareil');dirty=true;return false}
+  finally{syncing=false}}
+function logEv(ev,detail){if(!syncOn())return;
+  try{fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},keepalive:true,
+    body:JSON.stringify({action:'log',ev,id:S.did,agence:S.c.agence,client:S.c.client,etape:S.step,detail:detail||''})}).catch(()=>{})}catch(e){}}
+const appLink=()=>location.origin+location.pathname+'?id='+S.did+(new URLSearchParams(location.search).get('api')?'&api='+encodeURIComponent(API):'');
+$('#btnLink').onclick=async()=>{
+  if(!syncOn()){alert("La sauvegarde en ligne n'est pas configurée : renseignez API_URL dans le fichier index.html (voir Code.gs).");return}
+  $('#busyTxt').textContent='Enregistrement du chantier…';$('#busy').classList.add('on');
+  const ok=await pushSync();$('#busy').classList.remove('on');$('#busyTxt').textContent='Assemblage du DOE…';
+  if(!ok){alert('Enregistrement impossible : vérifiez la connexion. Le chantier reste sur cet appareil.');return}
+  const url=appLink();
+  try{await navigator.clipboard.writeText(url);toast('Lien copié')}catch(e){}
+  if(navigator.share){try{await navigator.share({title:'DOE '+(S.c.client||''),url});return}catch(e){}}
+  prompt('Lien de reprise de ce chantier (copiez-le) :',url);
+};
+async function restoreFromLink(){
+  const id=new URLSearchParams(location.search).get('id');if(!id||!syncOn())return false;
+  if(id===S.did&&Date.now()-lastSync<60000)return false;
+  $('#busyTxt').textContent='Ouverture du chantier…';$('#busy').classList.add('on');
+  try{const j=await api({action:'load',id});const d=JSON.parse(j.data);
+    if(S.did!==id&&S.dev.length&&!confirm('Ouvrir le chantier du lien ? Le chantier en cours sur cet appareil sera remplacé (il reste accessible par son propre lien).'))return false;
+    S=d;S.did=id;fInit();localStorage.setItem(KEY,JSON.stringify(S));
+    fillFields();if(map){map.remove();map=null}renderDevList();go(S.step||1);logEv('reprise');toast('Chantier repris');return true}
+  catch(e){alert("Ce lien n'a pas pu être ouvert : "+e.message);return false}
+  finally{$('#busy').classList.remove('on');$('#busyTxt').textContent='Assemblage du DOE…'}}
+window.addEventListener('beforeunload',e=>{if(dirty&&syncOn()){pushSync();e.preventDefault();e.returnValue=''}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&dirty)pushSync()});
 
 /* ============ NAVIGATION ============ */
 function go(n){
@@ -524,7 +583,7 @@ function go(n){
 $('#steps').addEventListener('click',e=>{const b=e.target.closest('[data-go]');if(b)go(+b.dataset.go)});
 $('#btnPrev').onclick=()=>go(S.step-1);
 $('#btnNext').onclick=()=>go(S.step+1);
-$('#btnNew').onclick=()=>{if(!confirm('Effacer ce chantier et en démarrer un nouveau ?'))return;S=fresh();fInit();for(const k in FILES)delete FILES[k];save();fillFields();if(map){map.remove();map=null}renderDevList();go(1)};
+$('#btnNew').onclick=()=>{if(!confirm('Effacer ce chantier et en démarrer un nouveau ?'))return;S=fresh();fInit();for(const k in FILES)delete FILES[k];history.replaceState({},'',location.pathname);save();logEv('nouveau_chantier');fillFields();if(map){map.remove();map=null}renderDevList();go(1)};
 
 /* ============ CHAMPS ============ */
 function fillFields(){
@@ -619,7 +678,7 @@ function finishLine(){if(draft.length<2){toast('Au moins 2 points pour un tracé
 function addDevice(type,coords){
   S.cnt[type]=(S.cnt[type]||0)+1;
   const d={id:TYPES[type].short+S.cnt[type],type,coords,fab:S.p.fournisseur||'',ref:'',lot:'',nb:'',obs:''};
-  S.dev.push(d);save();renderDevices();renderDevList();hl(d.id);toast(`${d.id} ajouté`);
+  S.dev.push(d);save();renderDevices();renderDevList();hl(d.id);toast(`${d.id} ajouté`);if(S.dev.length===1)logEv('premier_dispositif',TYPES[type].label);
 }
 function lineLen(c){if(S.mode!=='map')return null;let s=0;for(let i=1;i<c.length;i++)s+=L.latLng(c[i-1]).distanceTo(L.latLng(c[i]));return s}
 const devLen=d=>TYPES[d.type].geom==='line'?lineLen(d.coords):null;
@@ -647,8 +706,25 @@ function renderDevList(){
       <label>Modèle / référence<input data-dev="${d.id}" data-f="ref" value="${esc(d.ref)}"></label>
       ${(()=>{const c=catById(d.prod);if(!c)return '';return `<div class="full hint${compat(c)?'':' warn'}"><b>${esc(c.nom)}</b> — ${esc(c.norme)}${compat(c)?'':` — support déclaré (${esc(SUPPORTS[S.p.support]||'')}) non listé pour ce produit`}<br><span class="src">${esc(c.desc)}</span><br>${c.fiche?`<a href="${c.fiche}" target="_blank" rel="noopener">Fiche technique (PDF)</a> · `:''}<a href="${c.page}" target="_blank" rel="noopener">Page produit</a> · <a href="${AJ_DOC}" target="_blank" rel="noopener">Notice de montage (espace client)</a></div>`})()}
       <label>N° de lot / série<input data-dev="${d.id}" data-f="lot" value="${esc(d.lot)}"></label>
-      ${d.type==='ligne'?`<label>Utilisateurs simultanés max<input type="number" min="1" inputmode="numeric" data-dev="${d.id}" data-f="nb" value="${esc(d.nb)}"></label>`:''}
+      <label>Traçabilité (QR / STR)<input data-dev="${d.id}" data-f="str" value="${esc(d.str||'')}" placeholder="Réf. plaque ou QR code"></label>
       <label class="full">Observation de pose<input data-dev="${d.id}" data-f="obs" value="${esc(d.obs)}" placeholder="Ex. fixation traversante, reprise d'étanchéité"></label>
+      <details class="full det" ${(d.ext||d.inter||d.ang||d.fix||d.tirant)?'open':''}><summary>Composition et données de la note de calcul</summary>
+        <div class="grid2" style="margin-top:10px">
+          ${TYPES[d.type].geom==='line'?`
+          <label>Potelets / supports d'extrémité<input type="number" min="0" inputmode="numeric" data-dev="${d.id}" data-f="ext" value="${esc(d.ext||'')}"></label>
+          <label>Supports intermédiaires<input type="number" min="0" inputmode="numeric" data-dev="${d.id}" data-f="inter" value="${esc(d.inter||'')}"></label>
+          <label>Supports d'angle<input type="number" min="0" inputmode="numeric" data-dev="${d.id}" data-f="ang" value="${esc(d.ang||'')}"></label>`:''}
+          <label>Type de fixation<input data-dev="${d.id}" data-f="fix" value="${esc(d.fix||'')}" placeholder="Ex. vis autoperceuses sur bac sec"></label>
+          <label>Entraxe / support<input data-dev="${d.id}" data-f="entraxe" value="${esc(d.entraxe||'')}" placeholder="Ex. onde 250 ou 333 mm"></label>
+          <label class="full">Accessoires et éléments hauts<input data-dev="${d.id}" data-f="acc" value="${esc(d.acc||'')}" placeholder="Ex. câble, tendeur, absorbeur, signalétique"></label>
+          ${d.type==='ligne'?`
+          <label>Utilisateurs simultanés max<input type="number" min="1" inputmode="numeric" data-dev="${d.id}" data-f="nb" value="${esc(d.nb)}"></label>
+          <label>Portée maximale<input data-dev="${d.id}" data-f="portee" value="${esc(d.portee||'')}" placeholder="Ex. 12 m"></label>
+          <label>Prétension<input data-dev="${d.id}" data-f="pret" value="${esc(d.pret||'')}" placeholder="Ex. 80 daN"></label>
+          <label>Flèche<input data-dev="${d.id}" data-f="fleche" value="${esc(d.fleche||'')}" placeholder="Ex. 2,65 m"></label>
+          <label>Tirant d'air requis<input data-dev="${d.id}" data-f="tirant" value="${esc(d.tirant||'')}" placeholder="Ex. 5,15 m"></label>`:''}
+        </div>
+        <p class="src">À reprendre de la note de calcul du bureau d'études. Le tirant d'air conditionne l'utilisation du dispositif : il est repris dans le DOE et doit figurer sur la plaque.</p></details>
     </div></div>`}).join('');
 }
 $('#devList').addEventListener('click',e=>{const b=e.target.closest('[data-del]');if(!b)return;
@@ -787,12 +863,23 @@ $('#lfFile').addEventListener('change',async e=>{const f=e.target.files[0];e.tar
   PENDING.push({...m,file,name:f.name,localName:f.name,bytes:new Uint8Array(await f.arrayBuffer())});drawLib();toast('Ajout préparé : publiez-le sur Git')});
 $('#libList').addEventListener('click',e=>{const b=e.target.closest('[data-rmidx]');if(!b)return;const f=b.dataset.rmidx;REMOVED.has(f)?REMOVED.delete(f):REMOVED.add(f);drawLib()});
 /* ============ DOCUMENTS REMPLIS ET SIGNÉS EN LIGNE ============ */
-const FORMDOC={c_pv:'pv',c_attest:'att'};
+const FORMDOC={c_pv:'pv',c_attest:'att',c_registre:'reg'};
 const PV_LEGAL="La réception est l'acte par lequel le maître de l'ouvrage déclare accepter l'ouvrage avec ou sans réserves ; elle est prononcée contradictoirement (C. civ. art. 1792-6). Elle fait courir la garantie de parfait achèvement d'un an (art. 1792-6), la garantie de bon fonctionnement d'au moins deux ans des éléments d'équipement dissociables (art. 1792-3) et la responsabilité décennale (art. 1792 et 1792-4-1). Les réserves sont levées par l'entreprise dans les délais convenus. À compter de la réception, l'entretien et la vérification périodique des dispositifs incombent au maître d'ouvrage ou à l'exploitant employeur (C. trav. art. R4224-17), qui les intègre à son dossier de maintenance des lieux de travail (art. R4211-3).";
+const REG_LEGAL="Les installations et dispositifs techniques et de sécurité des lieux de travail sont entretenus et vérifiés suivant une périodicité appropriée ; toute défectuosité est éliminée sans délai et les vérifications sont consignées dans un dossier annexé au dossier de maintenance des lieux de travail (C. trav. art. R4224-17 et R4211-3). Les notices des fabricants prévoient une maintenance annuelle par une personne compétente. La présente fiche est initialisée par ATTILA à la mise en service, puis tenue par le maître d'ouvrage ou l'exploitant.";
 const ATT_LEGAL="Références : notices de montage des fabricants ; NF EN 795 (dispositifs d'ancrage) ; NF E85-015, NF E85-016 et NF EN ISO 14122 (garde-corps, échelles, cheminements) ; recommandation CNAM R 430 (dispositifs d'ancrage). La présente attestation porte sur la pose ; elle ne vaut ni note de calcul (établie par le bureau d'études) ni vérification périodique (C. trav. art. R4224-17).";
 const ATT_DECL=f=>`Je soussigné(e) ${f.tech||'...'}, technicien de l'agence ATTILA ${S.c.agence||''}, atteste que les dispositifs listés ci-dessus ont été installés conformément au plan d'implantation du bureau d'études${f.plan?' ('+f.plan+')':''}, aux notices de montage des fabricants et aux règles de l'art, et que les contrôles consignés ont été réalisés à l'issue de la pose.${Object.values(f.dev||{}).some(x=>Object.values(x.c||{}).includes('NC'))?' Les non-conformités relevées sont décrites en observation et doivent être traitées avant toute mise en service.':''}`;
+const NET_TXT=()=>`Le présent dossier est établi par l'agence ATTILA ${S.c.agence||''}, membre du réseau ATTILA, spécialisé dans la maintenance, la réparation et la sécurisation des toitures. Le réseau compte environ 136 agences en France et réalise près de 150 millions d'euros de chiffre d'affaires, dont l'essentiel auprès de clients professionnels et industriels. La sécurisation des toitures - points d'ancrage, lignes de vie, garde-corps, échelles à crinoline, cheminements, sauts-de-loup et passerelles - fait partie de ses métiers. Les prestations sont couvertes par les assurances de responsabilité civile professionnelle et de responsabilité décennale de l'agence, dont l'attestation est jointe ou communiquée sur demande.`;
+const REG_TXT="Les dispositifs installés relèvent des référentiels suivants : NF EN 795 pour les dispositifs d'ancrage (classes A, B, C et D) ; recommandation CNAM R 430 pour le choix, le dimensionnement, l'installation, l'utilisation et le contrôle des dispositifs d'ancrage ; NF E85-015 et NF EN ISO 14122-3 pour les garde-corps ; NF E85-016 et NF EN ISO 14122-4 pour les échelles ; NF EN 516 et NF EN ISO 14122-2 pour les cheminements et passerelles. Les équipements de protection individuelle utilisés avec ces dispositifs (harnais, longes, antichutes) relèvent du règlement (UE) 2016/425, qui a remplacé la directive 89/686/CEE. Côté employeur et maître d'ouvrage s'appliquent notamment les articles R4211-3 (dossier de maintenance des lieux de travail) et R4224-17 (entretien et vérification des installations et dispositifs de sécurité) du Code du travail. Les supports recevant les dispositifs relèvent des DTU de couverture et d'étanchéité ; leur aptitude à reprendre les efforts est justifiée par la note de calcul du bureau d'études ou par les essais figurant au présent dossier.";
+const ACT_TXT=()=>`Entreprise titulaire et installateur : ATTILA ${S.c.agence||''}${S.c.charge?`, chargé d'affaires ${S.c.charge}`:''}. Conception, plans et notes de calcul : ${S.p.be||'bureau d\'études de '+(S.p.fournisseur||'le fournisseur')}. Fourniture des dispositifs : ${S.p.fournisseur||'-'}. Maître d'ouvrage : ${S.c.client||'-'}. ATTILA intervient en qualité d'entreprise titulaire et d'installateur, et non de maître d'oeuvre.`;
+const VERIF={_:["État général et corrosion des pièces et de la visserie","Serrage et état des fixations sur le support, étanchéité au droit des fixations","État du support (déformation, corrosion, percements) au droit des ancrages","Lisibilité du marquage, de la plaque signalétique et du panneau d'affichage","Absence de choc ou de chute ayant sollicité le dispositif depuis la dernière vérification","Mise à jour de la date de vérification sur la plaque et consignation du résultat"],
+  ligne:["Tension du câble et état de l'indicateur de prétension","État de l'absorbeur d'énergie (non déclenché)","État du câble (toron rompu, pliure, corrosion), des serre-câbles et des tendeurs","Libre circulation du chariot ou du mousqueton aux intermédiaires et aux angles","Affichage du nombre d'utilisateurs et du tirant d'air requis"],
+  ancrage:["Libre rotation et état de l'anneau ou de la plaquette","Absence de déformation permanente de la platine ou du potelet"],
+  gardecorps:["Continuité, fixation et verticalité des montants, état des lisses et plinthes","Nombre et position des contrepoids (autoportant), absence de glissement"],
+  cheminement:["Fixation et stabilité des éléments, état antidérapant de la surface","État des protections de rive associées"],
+  crinoline:["État des échelons, des montants, de la crinoline et des paliers","Fonctionnement de la condamnation d'accès et de la crosse de sortie"]};
+const compo=d=>[d.ext&&`${d.ext} extrémité(s)`,d.inter&&`${d.inter} intermédiaire(s)`,d.ang&&`${d.ang} angle(s)`,d.fix,d.entraxe,d.acc].filter(Boolean).join(' ; ');
 const ESSAIS={non:'Non requis (tenue du support justifiée par la note de calcul)',faits:'Réalisés - PV joint au DOE',afaire:'À réaliser avant mise en service'};
-const CHECK={_:["Implantation conforme au plan du bureau d'études","Fixations conformes à la notice (type, nombre, entraxes)","Couples de serrage appliqués selon la notice","Étanchéité de la couverture reprise au droit des fixations","Marquage / plaque signalétique en place et lisible"],
+const CHECK={_:["Implantation conforme au plan du bureau d'études","Fixations conformes à la notice (type, nombre, entraxes)","Couples de serrage appliqués selon la notice","Étanchéité de la couverture reprise au droit des fixations","Marquage / plaque signalétique en place et lisible","Panneau d'affichage posé à l'accès (EPI obligatoires, nombre d'utilisateurs, marque, date de mise en service)"],
   ligne:["Prétension du câble conforme (indicateur)","Absorbeur d'énergie en place","Franchissement des intermédiaires et angles testé","Tirant d'air compatible avec la note de calcul"],
   ancrage:["Anneau / plaquette libre et accessible"],
   gardecorps:["Continuité sans lacune, retours d'extrémité en place","Lisse, sous-lisse et plinthe conformes à la fiche produit","Contrepoids en nombre prévu (si autoportant)"],
@@ -801,12 +888,13 @@ const CHECK={_:["Implantation conforme au plan du bureau d'études","Fixations c
 const checks=t=>[...CHECK._,...(CHECK[t]||[])];
 function fInit(){S.forms=S.forms||{};const F=S.forms;
   F.pv=F.pv||{date:new Date().toISOString().slice(0,10),lieu:'',repC:'',qualC:'',repE:'',qualE:'Chargé d\'affaires',dec:'sans',res:[],refus:'',doe:true,sigC:'',sigE:'',signedAt:'',hash:'',gps:''};
+  F.reg=F.reg||{mes:'',perio:'',resp:'',fonc:'',verif:'',lignes:'12',init:'',sig:'',signedAt:'',hash:'',gps:''};
   F.att=F.att||{tech:'',forme:false,formeDate:'',formeOrg:'',plan:'',essais:'non',dev:{},decl:false,sigT:'',nomV:'',sigV:'',signedAt:'',hash:'',gps:''}}
 fInit();
 const fget=p=>p.split('.').reduce((o,k)=>o?.[k],S.forms);
 const fset=(p,v)=>{const a=p.split('.');let o=S.forms;a.slice(0,-1).forEach(k=>{o[k]=o[k]??(/^\d+$/.test(k)?[]:{});o=o[k]});o[a.at(-1)]=v};
 let FK=null;
-function openForm(k){FK=k;$('#fmTitle').textContent=k==='pv'?'PV de réception des travaux':'Attestation de bonne installation';$('#fm').hidden=false;renderForm();$('#fm').scrollTop=0}
+function openForm(k){FK=k;$('#fmTitle').textContent={pv:'PV de réception des travaux',att:'Attestation de bonne installation',reg:'Fiche de vérification périodique'}[k];$('#fm').hidden=false;renderForm();$('#fm').scrollTop=0}
 $('#fmClose').onclick=()=>{$('#fm').hidden=true;FK=null;if(S.step===4)renderDocs()};
 const val=(p,d='')=>esc(fget(p)??d);
 const sigPad=(p,lock)=>`<canvas class="sig" data-sig="${p}" ${lock?'data-lock="1"':''}></canvas>${lock?'':`<button type="button" class="x" data-sigclear="${p}">Effacer la signature</button>`}`;
@@ -837,6 +925,22 @@ function renderForm(){const f=S.forms[FK],lock=!!f.signedAt;let body='';
     </fieldset>
     <h3>Signatures (sur l'écran, au doigt ou au stylet)</h3>
     <div class="sigs"><div><label>Maître d'ouvrage — « lu et approuvé »</label>${sigPad('pv.sigC',lock)}</div><div><label>ATTILA</label>${sigPad('pv.sigE',lock)}</div></div>`}
+  else if(FK==='reg'){
+    if(!f.mes)f.mes=S.p.reception;if(!f.perio)f.perio=S.p.perio;
+    const nx=f.mes?(()=>{const d=new Date(f.mes+'T12:00:00');d.setMonth(d.getMonth()+(+f.perio||12));return d.toLocaleDateString('fr-FR')})():'—';
+    body=`${head}<div class="legal">${esc(REG_LEGAL)}</div><fieldset ${lock?'disabled':''}>
+    <div class="grid2">
+      <label>Date de mise en service<input type="date" data-fk="reg.mes" value="${val('reg.mes')}"></label>
+      <label>Périodicité (mois)<select data-fk="reg.perio">${['6','12'].map(v=>`<option value="${v}" ${String(f.perio)===v?'selected':''}>${v} mois</option>`).join('')}</select></label>
+      <label>Responsable désigné par le client<input data-fk="reg.resp" value="${val('reg.resp')}" placeholder="Nom et prénom"></label>
+      <label>Fonction<input data-fk="reg.fonc" value="${val('reg.fonc')}" placeholder="Ex. responsable maintenance"></label>
+      <label>Vérificateur prévu<input data-fk="reg.verif" value="${val('reg.verif')}" placeholder="Organisme, fabricant ou agence ATTILA"></label>
+      <label>Lignes vierges à imprimer<select data-fk="reg.lignes">${['6','12','24'].map(v=>`<option value="${v}" ${String(f.lignes)===v?'selected':''}>${v} vérifications</option>`).join('')}</select></label>
+      <label class="full">Fiche initialisée par (ATTILA)<input data-fk="reg.init" value="${val('reg.init')||esc(S.c.charge)}"></label>
+    </div></fieldset>
+    <div class="next"><div><div class="src">Première vérification au plus tard le</div><div class="d">${nx}</div></div>
+      <div class="src">Puis tous les ${f.perio} mois. La fiche est remise au client dans le DOE, prête à être complétée à chaque passage.</div></div>
+    <h3>Signature (facultative)</h3><div class="sigs"><div><label>Pour ATTILA</label>${sigPad('reg.sig',lock)}</div></div>`}
   else{
     body=`${head}<div class="legal">${esc(ATT_LEGAL)}</div><fieldset ${lock?'disabled':''}>
     <div class="grid2">
@@ -899,10 +1003,11 @@ $('#fmBody').addEventListener('click',async e=>{const t=e.target.closest('button
   else if(t.dataset.funlock){if(!confirm('Modifier le document annule les signatures. Continuer ?'))return;Object.assign(f,FK==='pv'?{sigC:'',sigE:''}:{sigT:'',sigV:''},{signedAt:'',hash:'',gps:''});save();renderForm()}
   else if(t.dataset.fsign){const err=fCheck(FK);if(err.length){alert('À compléter avant signature :\n- '+err.join('\n- '));return}
     f.gps=await new Promise(r=>{if(!navigator.geolocation)return r('');navigator.geolocation.getCurrentPosition(p=>r(`${p.coords.latitude.toFixed(5)}, ${p.coords.longitude.toFixed(5)}`),()=>r(''),{timeout:5000,maximumAge:60000})});
-    f.signedAt=new Date().toISOString();f.hash='';f.hash=await sha256(JSON.stringify(f));save();renderForm();toast('Document signé et intégré au DOE')}});
+    f.signedAt=new Date().toISOString();f.hash='';f.hash=await sha256(JSON.stringify(f));save();renderForm();logEv('signature_'+FK);toast('Document signé et intégré au DOE')}});
 async function sha256(s){try{const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')}catch(e){return''}}
 function fCheck(k){const f=S.forms[k],e=[];
   if(!S.dev.length)e.push('au moins un dispositif implanté (étape 3)');
+  if(k==='reg'){if(!f.mes)e.push('date de mise en service');if(!f.init)e.push('nom de la personne qui initialise la fiche');return e}
   if(k==='pv'){if(!f.date)e.push('date de réception');if(!f.repC)e.push('représentant du maître d\'ouvrage');if(!f.repE)e.push('représentant ATTILA');
     if(f.dec==='avec'&&(!f.res.length||f.res.some(r=>!r.txt)))e.push('description de chaque réserve');if(f.dec==='avec'&&f.res.some(r=>!r.delai))e.push('délai de levée de chaque réserve');
     if(f.dec==='refus'&&!f.refus)e.push('motif du refus');if(!f.sigC)e.push('signature du maître d\'ouvrage');if(!f.sigE)e.push('signature ATTILA')}
@@ -935,7 +1040,7 @@ $('#btnPdf').onclick=async()=>{
   $('#busy').classList.add('on');
   try{const bytes=await buildPDF();const blob=new Blob([bytes],{type:'application/pdf'});const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);a.download=`DOE_securisation_${(S.p.ref||S.c.client||'chantier').replace(/[^\w-]+/g,'_')}_${new Date().toISOString().slice(0,10)}.pdf`;
-    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);toast(MISSING.length?`DOE généré — ${MISSING.length} fiche(s) non trouvée(s) sur Git : ${MISSING.join(', ')}`:'DOE généré');}
+    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);logEv('doe_genere',`${S.dev.length} dispositif(s)`);pushSync({doe:true});toast(MISSING.length?`DOE généré — ${MISSING.length} fiche(s) non trouvée(s) sur Git : ${MISSING.join(', ')}`:'DOE généré');}
   catch(err){console.error(err);toast('Échec de la génération : '+(err.message||err))}
   finally{$('#busy').classList.remove('on')}
 };
@@ -971,7 +1076,7 @@ async function buildPDF(){
   const wrap=(t,font,size,maxW)=>{const out=[];for(const p of clean(t).split('\n')){let line='';for(const w of p.split(' ')){const test=line?line+' '+w:w;if(font.widthOfTextAtSize(test,size)>maxW&&line){out.push(line);line=w}else line=test}out.push(line)}return out};
   const np=title=>{page=pdf.addPage([W,H]);page.drawRectangle({x:0,y:H-40,width:W,height:40,color:RED});
     page.drawText(clean('ATTILA  |  Dossier des ouvrages exécutés - sécurisation de toiture'),{x:M,y:H-25,size:9.5,font:B,color:WHITE});
-    y=H-62;if(title){page.drawText(clean(title),{x:M,y:y-16,size:16,font:B,color:INK});y-=30}};
+    y=H-62;if(title){const ls=wrap(title,B,16,W-2*M).slice(0,2);ls.forEach((l,i)=>page.drawText(l,{x:M,y:y-16-i*19,size:16,font:B,color:INK}));y-=30+(ls.length-1)*19}};
   const ensure=h=>{if(y-h<50)np(null)};
   const para=(t,o={})=>{const size=o.size||9.5,font=o.font||F,ind=o.indent||0;for(const l of wrap(t,font,size,W-2*M-ind)){ensure(size+4);page.drawText(l,{x:M+ind,y:y-size,size,font,color:o.color||INK});y-=size+3.5}y-=o.gap??5};
   const h3=t=>{ensure(40);y-=6;page.drawRectangle({x:M,y:y-14,width:4,height:14,color:RED});page.drawText(clean(t),{x:M+10,y:y-12,size:11.5,font:B,color:INK});y-=24};
@@ -979,6 +1084,7 @@ async function buildPDF(){
     const row=(cells,bold,fill)=>{const wr=cells.map((c,i)=>wrap(c??'',bold?B:F,size,cols[i].w-2*pad));const h=Math.max(...wr.map(l=>l.length))*(size+2.6)+2*pad;ensure(h);
       if(fill)page.drawRectangle({x:M,y:y-h,width:W-2*M,height:h,color:fill});let x=M;
       wr.forEach((ls,i)=>{ls.forEach((l,k)=>page.drawText(l,{x:x+pad,y:y-pad-size-k*(size+2.6)+1,size,font:bold?B:F,color:(cols[i].color&&!bold)?cols[i].color(cells[i]):INK}));x+=cols[i].w});
+      if(o.grid){let gx=M;cols.forEach(c=>{page.drawLine({start:{x:gx,y:y},end:{x:gx,y:y-h},thickness:.5,color:LINE});gx+=c.w});page.drawLine({start:{x:W-M,y:y},end:{x:W-M,y:y-h},thickness:.5,color:LINE})}
       page.drawLine({start:{x:M,y:y-h},end:{x:W-M,y:y-h},thickness:.5,color:LINE});y-=h};
     row(cols.map(c=>c.t),true,SOFT);rows.forEach(r=>row(r,false,null));y-=10};
 
@@ -1008,10 +1114,14 @@ async function buildPDF(){
   page.drawText(clean(complete?'DOE COMPLET':'DOE PROVISOIRE'),{x:M+14,y:y-20,size:14,font:B,color:sc});
   page.drawText(clean(complete?'Toutes les pièces attendues sont jointes ou déclarées sans objet.':`${st.missing.length} pièce(s) attendue(s) manquante(s) - voir bordereau des pièces.`),{x:M+14,y:y-35,size:9,font:F,color:INK});
   y-=70;page.drawText('Sommaire',{x:M,y,size:12,font:B,color:INK});y-=18;
-  ['1. Identification et intervenants','2. Plan d\'implantation des dispositifs','3. Inventaire des dispositifs','4. Répartition des responsabilités','5. Contrôles périodiques et obligations après réception','6. Bordereau des pièces','Annexes'+(an?` A1 à A${an}`:'')].forEach(s=>{page.drawText(clean(s),{x:M+8,y,size:10,font:F,color:INK});y-=15});
+  ['1. Présentation, cadre réglementaire et intervenants','2. Identification du chantier','3. Plan d\'implantation des dispositifs','4. Inventaire des dispositifs et données d\'usage','5. Répartition des responsabilités','6. Contrôles périodiques et obligations après réception','7. Bordereau des pièces','Annexes'+(an?` A1 à A${an}`:'')].forEach(s=>{page.drawText(clean(s),{x:M+8,y,size:10,font:F,color:INK});y-=15});
 
   /* --- 1 identification --- */
-  np('1. Identification et intervenants');
+  np('1. Présentation, cadre réglementaire et intervenants');
+  h3('Le réseau ATTILA');para(NET_TXT(),{size:9.5});
+  h3('Cadre réglementaire et normatif');para(REG_TXT,{size:9.5});
+  h3('Intervenants');para(ACT_TXT(),{size:9.5});
+  np('2. Identification du chantier');
   table([{t:'Rubrique',w:170},{t:'Information',w:W-2*M-170}],[
     ['Client / maître d\'ouvrage',S.c.client],['Site / bâtiment',S.c.site],['Adresse',S.c.adresse+(S.c.lat?`\nGPS ${(+S.c.lat).toFixed(6)}, ${(+S.c.lng).toFixed(6)}`:'')],['Contact client',S.c.contact],
     ['Référence devis / commande',S.p.ref],
@@ -1021,7 +1131,7 @@ async function buildPDF(){
   ].map(r=>[r[0],r[1]||'-']),{size:9});
 
   /* --- 2 plan --- */
-  np('2. Plan d\'implantation des dispositifs');
+  np('3. Plan d\'implantation des dispositifs');
   const bx=M,bw=W-2*M,bh=430,by=y-bh;let proj=null,latRef=46,sat=false;
   if(S.mode==='image'&&S.img){
     page.drawRectangle({x:bx,y:by,width:bw,height:bh,color:SOFT});
@@ -1057,21 +1167,30 @@ async function buildPDF(){
   y-=4;para(sat?`Fond : ${sat}. Positions`+' indicatives relevées à la pose ; le plan de récolement du bureau d\'études fait foi pour les cotes.':'Positions indicatives relevées à la pose ; le plan de récolement du bureau d\'études fait foi pour les cotes.',{size:8,color:MUTE});
 
   /* --- 3 inventaire --- */
-  np('3. Inventaire des dispositifs');
+  np('4. Inventaire des dispositifs et données d\'usage');
   table([{t:'Repère',w:42},{t:'Dispositif',w:108},{t:'Fabricant / modèle',w:112},{t:'Lot / série',w:70},{t:'Métré / capacité',w:70},{t:'Observation',w:W-2*M-402}],
-    S.dev.map(d=>{const l=devLen(d);return[d.id,`${TYPES[d.type].label}\n${TYPES[d.type].norme}`,[d.fab,d.ref].filter(Boolean).join(' - ')||'-',d.lot||'-',[l?l.toFixed(1)+' m':'',d.nb?d.nb+' util. max':''].filter(Boolean).join('\n')||'-',d.obs||'-']}),{size:8.5});
+    S.dev.map(d=>{const l=devLen(d);return[d.id,`${TYPES[d.type].label}\n${TYPES[d.type].norme}`,[d.fab,d.ref].filter(Boolean).join(' - ')||'-',[d.lot,d.str&&'QR/STR : '+d.str].filter(Boolean).join('\n')||'-',[l?l.toFixed(1)+' m':'',d.nb?d.nb+' util. max':''].filter(Boolean).join('\n')||'-',[compo(d),d.obs].filter(Boolean).join('\n')||'-']}),{size:8.5});
   if(!S.dev.length)para('Aucun dispositif renseigné.');
+  const lvs=S.dev.filter(d=>d.type==='ligne'&&(d.nb||d.portee||d.pret||d.fleche||d.tirant));
+  if(lvs.length){h3('Données d\'usage issues de la note de calcul');
+    table([{t:'Repère',w:50},{t:'Utilisateurs max',w:80},{t:'Portée max',w:70},{t:'Prétension',w:70},{t:'Flèche',w:70},{t:'Tirant d\'air requis',w:W-2*M-340}],
+      lvs.map(d=>[d.id,d.nb||'-',d.portee||'-',d.pret||'-',d.fleche||'-',d.tirant||'-']),{size:8.5});
+    para("Le tirant d'air requis conditionne l'utilisation : avant chaque intervention, l'utilisateur vérifie que la hauteur libre sous la ligne est supérieure à cette valeur, et que le nombre d'utilisateurs simultanés n'est pas dépassé. Ces valeurs sont reportées sur la plaque signalétique posée à l'accès.",{size:9});}
 
   /* --- 4 responsabilités --- */
-  np('4. Répartition des responsabilités');
+  np('5. Répartition des responsabilités');
   para('R = responsable ; P = participe. La conception (plans, notes de calcul, choix des produits) relève du fournisseur et de son bureau d\'études. L\'agence ATTILA réalise la pose conformément au plan et aux notices, et remet le présent dossier. Après réception, l\'exploitation, l\'entretien et les vérifications périodiques relèvent du client.',{size:9});
   const rc=v=>v==='R'?RED:MUTE;
   table([{t:'Étape',w:200},{t:'Fournisseur / BE',w:75,color:rc},{t:'Agence ATTILA',w:70,color:rc},{t:'Client',w:55,color:rc},{t:'Appui',w:W-2*M-400}],RACI.map(r=>r.map(x=>x||'-')),{size:8.5});
 
   /* --- 5 contrôles --- */
-  np('5. Contrôles périodiques et obligations après réception');
+  np('6. Contrôles périodiques et obligations après réception');
   const verifTxt={client:'Client - organisme ou personne compétente de son choix',agence:`Agence ATTILA - contrat de vérification${S.p.forme?' (technicien formé par le fabricant)':' (technicien à former avant intervention)'}`,fabricant:'Fabricant ou installateur agréé du fabricant',adef:'À définir par le client'}[S.p.verif];
   table([{t:'Élément',w:170},{t:'Valeur',w:W-2*M-170}],[['Date de réception',fmtD(S.p.reception)],['Périodicité retenue',`${S.p.perio} mois (à confirmer selon notices fabricants)`],['Première vérification au plus tard le',nxt?nxt.toLocaleDateString('fr-FR'):'-'],['Vérificateur prévu',verifTxt]],{size:9});
+  h3('Contenu de la vérification périodique');
+  para("À chaque échéance, la personne compétente contrôle au minimum les points suivants, selon les notices des fabricants :",{size:9.5});
+  [...VERIF._,...[...new Set(S.dev.map(d=>d.type))].flatMap(t=>VERIF[t]||[])].forEach(t=>{ensure(22);page.drawText('-',{x:M+2,y:y-9.5,size:9.5,font:B,color:RED});para(t,{indent:12,size:9.5,gap:3})});
+  para("Le résultat est consigné, la date de la dernière vérification est portée sur la plaque du dispositif, et tout dispositif douteux est condamné jusqu'à remise en état.",{size:9,color:MUTE});
   h3('Ce que le client doit faire');
   ['Intégrer ce dossier à son dossier de maintenance des lieux de travail, qui décrit notamment les moyens d\'arrimage, garde-corps et chemins de circulation permanents en couverture (C. trav. art. R4211-3). Le tenir à disposition de l\'inspection du travail et de la Carsat (R4211-5).',
    'Faire entretenir et vérifier les dispositifs selon une périodicité appropriée, éliminer sans délai toute défectuosité et consigner vérifications et interventions dans un dossier annexé au DMLT (C. trav. art. R4224-17).',
@@ -1083,7 +1202,7 @@ async function buildPDF(){
   para('Pose conforme au plan du bureau d\'études et aux notices des fabricants ; production des fiches de pose et du reportage photo ; remise du présent dossier. L\'agence n\'assure la vérification périodique que dans le cadre d\'un contrat distinct, par un technicien formé.',{size:9.5});
 
   /* --- 6 bordereau --- */
-  np('6. Bordereau des pièces');
+  np('7. Bordereau des pièces');
   const stTxt=d=>formDone(d.id)?'Signé en ligne':(!FILES[d.id]?.length&&!linked(d.id).length&&catDocs(d.id).length&&catDocs(d.id).some(c=>!CATB[c.fiche]))?'Lien fabricant':({ok:'Jointe',na:'Sans objet',opt:'Non applicable',miss:'MANQUANTE'})[status(d)];
   groups().forEach(g=>{h3(g.label);
     table([{t:'Annexe',w:44},{t:'Pièce',w:210},{t:'Établie par',w:100},{t:'Fondement',w:W-2*M-434},{t:'Statut',w:80,color:v=>v==='MANQUANTE'?hex('#CC0000'):v==='Jointe'?hex('#38761D'):MUTE}],
@@ -1114,6 +1233,24 @@ async function buildPDF(){
     if(f.doe)para('Le dossier des ouvrages exécutés (DOE) est remis au maître d\'ouvrage avec le présent procès-verbal.',{size:9.5});
     h3('Portée de la réception');para(PV_LEGAL,{size:8.5});
     ensure(170);h3('Signatures');await pSigs([['Pour le maître d\'ouvrage - lu et approuvé',`${f.repC}, ${f.qualC||''}`,f.sigC,fmtD(f.date)],['Pour ATTILA',`${f.repE}, ${f.qualE||''}`,f.sigE,fmtD(f.date)]]);pSeal(f)}
+  async function pdfReg(lab){const f=S.forms.reg;np(lab);
+    para('Fiche de vérification périodique des dispositifs de sécurité',{size:14,font:B});
+    const nx=f.mes?(()=>{const d=new Date(f.mes+'T12:00:00');d.setMonth(d.getMonth()+(+f.perio||12));return d.toLocaleDateString('fr-FR')})():'-';
+    table([{t:'Rubrique',w:170},{t:'Information',w:W-2*M-170}],[['Site',[S.c.client,S.c.site,S.c.adresse].filter(Boolean).join(' - ')],['Installateur',`ATTILA - ${S.c.agence||''}`],
+      ['Date de mise en service',fmtD(f.mes)],['Périodicité retenue',`${f.perio} mois`],['Première vérification au plus tard le',nx],
+      ['Vérificateur prévu',f.verif||'à désigner par le client'],['Responsable désigné par le client',[f.resp,f.fonc].filter(Boolean).join(' - ')||'-'],['Fiche initialisée par',f.init||'-']],{size:9});
+    h3('Dispositifs couverts');
+    table([{t:'Repère',w:50},{t:'Dispositif',w:150},{t:'Produit',w:W-2*M-340},{t:'Métré / capacité',w:70},{t:'Lot / QR',w:70}],
+      S.dev.map(d=>{const l=devLen(d);return[d.id,TYPES[d.type].label,[d.fab,d.ref].filter(Boolean).join(' - ')||'-',[l?l.toFixed(1)+' m':'',d.nb?d.nb+' util.':''].filter(Boolean).join(' / ')||'-',[d.lot,d.str].filter(Boolean).join(' / ')||'-']}),{size:8.5});
+    h3('Points à contrôler à chaque vérification');
+    [...VERIF._,...[...new Set(S.dev.map(d=>d.type))].flatMap(t=>VERIF[t]||[])].forEach(t=>{ensure(20);page.drawText('-',{x:M+2,y:y-9.5,size:9.5,font:B,color:RED});para(t,{indent:12,size:9,gap:2})});
+    h3('Registre des vérifications');
+    const cols=[{t:'Date',w:62},{t:'Vérificateur (société, nom)',w:140},{t:'Résultat',w:60},{t:'Observations et suites données',w:W-2*M-332},{t:'Visa',w:70}];
+    table(cols,[[nx,'','À réaliser','Première vérification programmée',''],...Array.from({length:+f.lignes||12},()=>['\n','\n','\n','\n','\n'])],{size:8.5,grid:true});
+    h3('Rappel réglementaire');para(REG_LEGAL,{size:8.5});
+    para("Tout dispositif ayant subi une chute, un choc ou présentant un défaut est condamné jusqu'à vérification par une personne compétente. La date de la dernière vérification est portée sur la plaque du dispositif.",{size:9});
+    if(f.sig){ensure(170);h3('Fiche initialisée par');await pSigs([['Pour ATTILA',f.init,f.sig,fmtD(f.signedAt?.slice(0,10))]])}
+    pSeal(f)}
   async function pdfAtt(lab){const f=S.forms.att;np(lab);
     para('Attestation de bonne installation des dispositifs de sécurité',{size:14,font:B});
     table([{t:'Rubrique',w:170},{t:'Information',w:W-2*M-170}],[['Installateur',`ATTILA - ${S.c.agence||''}`],['Technicien',f.tech],['Formation fabricant',f.forme?`Oui - ${f.formeOrg||''} ${f.formeDate?'('+fmtD(f.formeDate)+')':''}`:'Non déclarée'],
@@ -1128,7 +1265,7 @@ async function buildPDF(){
     for(const l of linked(d.id)){try{fl.push({name:l.name,kind:l.mime==='application/pdf'?'pdf':'img',bytes:await libBytes(l),w:l.w,h:l.h})}catch(e){}}
     for(const c of catDocs(d.id)){if(linked(d.id).some(l=>l===libForCat(c)))continue;const b=CATB[c.fiche];
       if(b)fl.push({name:c.fiche.split('/').pop(),kind:'pdf',bytes:b.bytes});else fl.push({name:c.nom,kind:'renvoi',cat:c})}
-    if(formDone(d.id))await (FORMDOC[d.id]==='pv'?pdfPV:pdfAtt)(`Annexe ${annex[d.id]} - ${d.label}`);
+    if(formDone(d.id))await ({pv:pdfPV,att:pdfAtt,reg:pdfReg}[FORMDOC[d.id]])(`Annexe ${annex[d.id]} - ${d.label}`);
     if(!fl.length)continue;
     for(const f of fl){const lab=`Annexe ${annex[d.id]} - ${d.label}`;
       if(f.kind==='renvoi'){np(lab);para(`Fiche technique fabricant : ${f.cat.fab} - ${f.cat.nom} (${f.cat.norme}).`,{font:B});
@@ -1147,6 +1284,7 @@ async function buildPDF(){
 
 /* ============ INIT ============ */
 renderTools();fillFields();go(S.step||1);loadLib();
+if(syncOn()){setSync('','Sauvegarde en ligne active');restoreFromLink().then(r=>{if(!r)logEv('ouverture')})}
 </script>
 </body>
 </html>
