@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DOE sécurisation — suivi réseau</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{--red:#C0392B;--ink:#1E2328;--mute:#5E6770;--line:#D5DADF;--bg:#ECEFF1;--card:#fff;--ok:#38761D;--warn:#E69138;--ko:#CC0000}
+*{box-sizing:border-box}
+body{margin:0;font-family:Barlow,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:16px}
+header{background:var(--red);color:#fff;padding:14px 16px}
+header div{max-width:1200px;margin:0 auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+h1{font-family:"Barlow Condensed",sans-serif;font-size:22px;margin:0;flex:1;line-height:1.15}
+h1 small{display:block;font-family:Barlow,sans-serif;font-weight:500;font-size:13px;opacity:.85}
+main{max-width:1200px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:14px}
+h2{font-family:"Barlow Condensed",sans-serif;font-size:20px;margin:0 0 12px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.kpi{background:#F4F6F7;border-radius:10px;padding:14px;border-left:5px solid var(--red)}
+.kpi b{display:block;font-family:"Barlow Condensed",sans-serif;font-size:30px;line-height:1}
+.kpi span{font-size:13px;color:var(--mute)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{border-bottom:1px solid var(--line);padding:9px 8px;text-align:left;vertical-align:top}
+th{background:#F4F6F7;font-size:13px;position:sticky;top:0}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+.wrap{overflow:auto;max-height:70vh}
+a{color:#1565C0}
+.bar{height:9px;background:#E3E7EA;border-radius:5px;overflow:hidden;min-width:60px}
+.bar div{height:100%;background:var(--red)}
+input,select,button{font:inherit;padding:9px 11px;border:1.5px solid var(--line);border-radius:8px;background:#fff}
+button{background:var(--red);color:#fff;border:0;font-weight:700;cursor:pointer}
+button.line{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
+.tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tools input{flex:1 1 220px}
+.tag{font-size:12px;font-weight:700;padding:3px 8px;border-radius:12px;background:#EEF0F2;color:var(--mute)}
+.tag.ok{background:#EDF5EA;color:var(--ok)}
+.tag.cours{background:#FDF4EA;color:#B26A1D}
+.hint{font-size:14px;padding:10px 12px;border-radius:8px;background:#F4F6F7;border-left:4px solid #1565C0;margin-bottom:12px}
+.hint.ko{border-left-color:var(--ko);background:#FBEAEA}
+.mois{display:flex;align-items:flex-end;gap:6px;height:150px;margin-top:10px}
+.mois div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;font-size:11px;color:var(--mute)}
+.mois i{display:block;width:100%;background:var(--red);border-radius:4px 4px 0 0;min-height:2px}
+.mois i.b{background:#E8B4AE}
+.src{font-size:13px;color:var(--mute)}
+</style>
+</head>
+<body>
+<header><div>
+  <h1>DOE sécurisation de toiture<small>Suivi d'usage du réseau ATTILA</small></h1>
+  <button class="line" id="btnRefresh" type="button">Actualiser</button>
+  <button class="line" id="btnCsv" type="button">Export CSV</button>
+</div></header>
+<main>
+  <div id="state"></div>
+
+  <div class="card"><h2>Vue d'ensemble</h2><div class="kpis" id="kpis"></div></div>
+
+  <div class="card"><h2>Dossiers créés par mois</h2><div class="mois" id="mois"></div>
+    <p class="src">Barre pleine : dossiers ouverts. Barre claire : DOE effectivement générés.</p></div>
+
+  <div class="card"><h2>Usage par agence</h2>
+    <div class="wrap"><table id="tAgences"><thead><tr>
+      <th>Agence</th><th class="n">Dossiers</th><th class="n">DOE générés</th><th>Taux</th>
+      <th class="n">Dispositifs</th><th class="n">Mètres</th><th>Dernière activité</th>
+    </tr></thead><tbody></tbody></table></div></div>
+
+  <div class="card"><h2>Répertoire partagé des chantiers</h2>
+    <div class="tools">
+      <input id="q" placeholder="Rechercher : agence, client, site, référence…">
+      <select id="filtre">
+        <option value="">Tous les dossiers</option>
+        <option value="doe">DOE généré</option>
+        <option value="cours">En cours</option>
+        <option value="nosign">Sans PV signé</option>
+      </select>
+    </div>
+    <div class="wrap"><table id="tDossiers"><thead><tr>
+      <th>Mise à jour</th><th>Agence</th><th>Client / site</th><th>Réf.</th>
+      <th class="n">Disp.</th><th>Documents</th><th>État</th><th>Ouvrir</th>
+    </tr></thead><tbody></tbody></table></div>
+    <p class="src">« Ouvrir » reprend le chantier dans l'application, à l'étape où il a été laissé. « Données » ouvre le fichier du dossier sur le Drive.</p></div>
+</main>
+
+<script>
+/* URL du déploiement Apps Script (/exec) — la même que dans index.html */
+const API_URL='https://script.google.com/macros/s/AKfycbwWOrgoTgVjLXbt7AuyijQtV9biFaH9rWon14EWaFYsFQ0IARQ6wRp46_X33NFjZw-o/exec';
+const API=new URLSearchParams(location.search).get('api')||API_URL;
+/* Adresse de l'application, pour les liens de reprise */
+const APP=new URLSearchParams(location.search).get('app')||location.href.replace(/reporting\.html.*$/,'index.html');
+
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt=d=>{if(!d)return '—';const x=new Date(d);return isNaN(x)?'—':x.toLocaleDateString('fr-FR')+' '+x.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})};
+const num=n=>(Number(n)||0).toLocaleString('fr-FR');
+let DOSSIERS=[],STATS=null;
+
+async function call(body){
+  const r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  const j=await r.json();if(j.ok===false)throw new Error(j.error||'refus du serveur');return j;
+}
+
+async function load(){
+  if(!API){$('#state').innerHTML='<div class="hint ko"><b>À configurer :</b> renseignez API_URL dans ce fichier avec l\'URL /exec du script Apps Script.</div>';return}
+  $('#state').innerHTML='<div class="hint">Chargement…</div>';
+  try{
+    const [s,l]=await Promise.all([call({action:'stats'}),call({action:'list',limit:500})]);
+    STATS=s;DOSSIERS=l.dossiers||[];$('#state').innerHTML='';
+    kpis();mois();agences();dossiers();
+  }catch(e){$('#state').innerHTML=`<div class="hint ko"><b>Lecture impossible :</b> ${esc(e.message)}. Vérifiez que le script est déployé en « accès : tout le monde ».</div>`}
+}
+
+function kpis(){
+  const t=STATS.totaux;
+  $('#kpis').innerHTML=[
+    ['Dossiers ouverts',num(t.dossiers)],['DOE générés',num(t.doe)],['Agences utilisatrices',num(t.agences)],
+    ['Dispositifs tracés',num(t.dispositifs)],['Mètres de linéaire',num(Math.round(t.metres))],
+    ['PV de réception signés',num(t.pv)],['Attestations signées',num(t.attestation)],['Fiches de vérification',num(t.fiche)]
+  ].map(([k,v])=>`<div class="kpi"><b>${v}</b><span>${k}</span></div>`).join('');
+}
+
+function mois(){
+  const m=STATS.parMois.slice(-12),max=Math.max(1,...m.map(x=>x.dossiers));
+  $('#mois').innerHTML=m.length?m.map(x=>`<div title="${x.mois} : ${x.dossiers} dossier(s), ${x.doe} DOE">
+    <i class="b" style="height:${x.doe/max*110}px"></i><i style="height:${(x.dossiers-x.doe)/max*110}px"></i>
+    <span>${x.mois.slice(5)}/${x.mois.slice(2,4)}</span></div>`).join('')
+    :'<p class="src">Aucun dossier enregistré pour le moment.</p>';
+}
+
+function agences(){
+  const r=STATS.parAgence,max=Math.max(1,...r.map(x=>x.dossiers));
+  $('#tAgences tbody').innerHTML=r.length?r.map(a=>`<tr>
+    <td>${esc(a.agence)}</td><td class="n">${a.dossiers}</td><td class="n">${a.doe}</td>
+    <td><div class="bar"><div style="width:${a.dossiers?a.doe/a.dossiers*100:0}%"></div></div></td>
+    <td class="n">${a.dispositifs}</td><td class="n">${num(Math.round(a.metres))}</td><td>${fmt(a.dernier)}</td></tr>`).join('')
+    :'<tr><td colspan="7" class="src">Aucune donnée.</td></tr>';
+}
+
+function dossiers(){
+  const q=$('#q').value.toLowerCase().trim(),f=$('#filtre').value;
+  const rows=DOSSIERS.filter(d=>{
+    const txt=[d.agence,d.client,d.site,d.adresse,d.reference].join(' ').toLowerCase();
+    if(q&&!txt.includes(q))return false;
+    if(f==='doe'&&!d.doe_genere_le)return false;
+    if(f==='cours'&&d.doe_genere_le)return false;
+    if(f==='nosign'&&d.pv_signe==='oui')return false;
+    return true;
+  });
+  $('#tDossiers tbody').innerHTML=rows.length?rows.map(d=>{
+    const docs=[d.pv_signe==='oui'&&'PV',d.attestation_signee==='oui'&&'Attest.',d.fiche_verif==='oui'&&'Fiche'].filter(Boolean);
+    return `<tr>
+      <td>${fmt(d.maj_le)}</td><td>${esc(d.agence)||'—'}</td>
+      <td>${esc(d.client)||'—'}${d.site?'<br><span class="src">'+esc(d.site)+'</span>':''}</td>
+      <td>${esc(d.reference)||'—'}</td><td class="n">${d.nb_dispositifs||0}</td>
+      <td>${docs.length?docs.map(x=>`<span class="tag ok">${x}</span>`).join(' '):'<span class="tag">aucun</span>'}</td>
+      <td>${d.doe_genere_le?'<span class="tag ok">DOE généré</span>':`<span class="tag cours">étape ${d.etape||1}/5</span>`}</td>
+      <td><a href="${APP}?id=${encodeURIComponent(d.id)}" target="_blank" rel="noopener">Reprendre</a>${d.fichier?` · <a href="${d.fichier}" target="_blank" rel="noopener">Données</a>`:''}</td></tr>`}).join('')
+    :'<tr><td colspan="8" class="src">Aucun dossier ne correspond.</td></tr>';
+}
+
+$('#q').addEventListener('input',dossiers);
+$('#filtre').addEventListener('change',dossiers);
+$('#btnRefresh').onclick=load;
+$('#btnCsv').onclick=()=>{
+  if(!DOSSIERS.length)return;
+  const cols=['maj_le','agence','client','site','adresse','reference','etape','nb_dispositifs','metres','pv_signe','attestation_signee','fiche_verif','doe_genere_le'];
+  const csv=[cols.join(';'),...DOSSIERS.map(d=>cols.map(c=>`"${String(d[c]??'').replace(/"/g,'""')}"`).join(';'))].join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}));
+  a.download='doe_securisation_'+new Date().toISOString().slice(0,10)+'.csv';document.body.appendChild(a);a.click();a.remove();
+};
+load();
+</script>
+</body>
+</html>
