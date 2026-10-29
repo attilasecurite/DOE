@@ -81,15 +81,18 @@ button.line{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
       <th>Mise à jour</th><th>Agence</th><th>Client / site</th><th>Réf.</th>
       <th class="n">Disp.</th><th>Documents</th><th>État</th><th>Ouvrir</th>
     </tr></thead><tbody></tbody></table></div>
-    <p class="src">« Ouvrir » reprend le chantier dans l'application, à l'étape où il a été laissé. « Données » ouvre le fichier du dossier sur le Drive.</p></div>
+    <p class="src">« Reprendre » rouvre le chantier dans l'application, à l'étape où il a été laissé. « Données » ouvre le fichier du dossier sur le Drive. Application visée : <span id="appCible"></span></p></div>
 </main>
 
 <script>
 /* URL du déploiement Apps Script (/exec) — la même que dans index.html */
 const API_URL='https://script.google.com/macros/s/AKfycbwrleCpyJ4W8ygiyS-di0LXOdb_12v-FGlBfuQIem4BtVIMASXJ5KI_t1B2jYortJH9/exec';
 const API=new URLSearchParams(location.search).get('api')||API_URL;
-/* Adresse de l'application, pour les liens de reprise */
-const APP=new URLSearchParams(location.search).get('app')||location.href.replace(/reporting\.html.*$/,'index.html');
+/* Adresse complète de l'application DOE, vers laquelle pointe « Reprendre ».
+   Elle est absolue pour que cette page fonctionne aussi depuis l'ordinateur,
+   sans aller chercher un index.html voisin qui serait un autre outil. */
+const APP_URL='https://attilasecurite.github.io/DOE/index.html';
+const APP=new URLSearchParams(location.search).get('app')||APP_URL||new URL('index.html',location.href).href;
 
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -171,6 +174,7 @@ $('#btnCsv').onclick=()=>{
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}));
   a.download='doe_securisation_'+new Date().toISOString().slice(0,10)+'.csv';document.body.appendChild(a);a.click();a.remove();
 };
+$('#appCible').textContent=APP;
 load();
 </script>
 </body>
