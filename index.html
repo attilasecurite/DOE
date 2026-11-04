@@ -19,7 +19,8 @@ html,body{margin:0}
 body{font-family:Barlow,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:16px;line-height:1.45;padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
 button,input,select{font:inherit}
 header.top{background:var(--red);color:#fff;padding:calc(12px + env(safe-area-inset-top,0px)) 16px 0}
-.top-row{display:flex;align-items:center;gap:12px;max-width:1100px;margin:0 auto}
+.top-row{display:flex;align-items:center;gap:10px;max-width:1100px;margin:0 auto;flex-wrap:wrap}
+a.btn-ghost{text-decoration:none;display:inline-flex;align-items:center}
 .top h1{font-family:"Barlow Condensed",Barlow,sans-serif;font-size:22px;margin:0;letter-spacing:.3px;flex:1;line-height:1.1}
 .top h1 small{display:block;font-family:Barlow,sans-serif;font-weight:500;font-size:13px;opacity:.85}
 .btn-ghost{background:transparent;border:1.5px solid rgba(255,255,255,.7);color:#fff;border-radius:8px;padding:6px 10px;font-size:13px;cursor:pointer}
@@ -213,6 +214,7 @@ nav.steps button.lib{margin-left:auto;border-left:1px solid rgba(255,255,255,.3)
     <h1>DOE sécurisation de toiture<small id="hdrSub">Nouveau chantier</small></h1>
     <span class="who" id="who" hidden><span id="whoName"></span><button class="btn-ghost" id="btnLogout" type="button">Déconnexion</button></span>
     <span class="sync" id="syncState" hidden><span class="dot"></span><span id="syncTxt"></span></span>
+    <a class="btn-ghost" id="btnSuivi" href="reporting.html" target="_blank" rel="noopener" hidden>Mes chantiers</a>
     <button class="btn-ghost" id="btnLink" type="button">Lien de reprise</button>
     <button class="btn-ghost" id="btnNew" type="button">Nouveau chantier</button>
   </div>
@@ -533,6 +535,8 @@ const KEY='attila_doe_securisation_v1';
 /* URL du déploiement Apps Script (/exec). Vide = sauvegarde locale seulement. */
 const API_URL='https://script.google.com/macros/s/AKfycbwrleCpyJ4W8ygiyS-di0LXOdb_12v-FGlBfuQIem4BtVIMASXJ5KI_t1B2jYortJH9/exec';
 const API=new URLSearchParams(location.search).get('api')||API_URL;
+/* Adresse du suivi « Mes chantiers ». Vide = reporting.html, dans le même dossier que cette page. */
+const SUIVI_URL='';
 const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const fresh=()=>({step:1,c:{adresse:'',lat:null,lng:null,client:'',site:'',contact:'',agence:'',charge:''},
   p:{ref:'',fournisseur:'Ajuva Safety',be:'',support:'bac_sec',debut:'',reception:'',perio:'12',verif:'client',forme:false},
@@ -1368,6 +1372,7 @@ renderTools();fillFields();go(S.step||1);loadLib();
   const reconnu=await authInit();
   if(!syncOn())return;
   setSync('','Sauvegarde en ligne active');
+  const s=$('#btnSuivi');if(s){s.href=SUIVI_URL||new URL('reporting.html',location.href).href;s.hidden=false}
   if(reconnu)suiteConnexion();else setSync('err','Connexion requise');
 })();
 </script>
