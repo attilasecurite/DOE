@@ -48,6 +48,8 @@ label input:focus,label select:focus{outline:none;border-color:var(--red);box-sh
 .hint.warn{border-left-color:var(--warn);background:#FDF4EA}
 .hint.ko{border-left-color:var(--ko);background:#FBEAEA}
 .hint.ok{border-left-color:var(--ok);background:#EDF5EA}
+.oblig{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--red);background:#F8E1DE;border-radius:10px;padding:2px 7px;margin-left:6px}
+select[data-k="c.agence"]:invalid{border-color:var(--red);background:#FDF6F5}
 .ac{position:relative}
 .ac-list{position:absolute;z-index:1000;left:0;right:0;top:100%;background:#fff;border:1.5px solid var(--line);border-radius:8px;margin-top:4px;box-shadow:0 8px 20px rgba(30,35,40,.12);overflow:hidden}
 .ac-list button{display:block;width:100%;text-align:left;background:#fff;border:0;border-bottom:1px solid var(--line);padding:12px;cursor:pointer;font-size:15px}
@@ -245,7 +247,7 @@ nav.steps button.lib{margin-left:auto;border-left:1px solid rgba(255,255,255,.3)
       <label>Client (raison sociale)<input data-k="c.client" placeholder="Ex. Logistique Sud SAS"></label>
       <label>Site / bâtiment<input data-k="c.site" placeholder="Ex. Entrepôt B, toiture bac acier"></label>
       <label>Contact client (nom, e-mail ou tél.)<input data-k="c.contact"></label>
-      <label>Agence ATTILA<input data-k="c.agence" placeholder="Ex. PRODEV Rhône-Alpes"></label>
+      <label>Agence ATTILA <span class="oblig">obligatoire</span><select data-k="c.agence" id="selAgence" required><option value="">— Choisir l'agence —</option></select></label>
       <label class="full">Chargé d'affaires / chef de chantier<input data-k="c.charge"></label>
     </div>
   </div>
@@ -566,7 +568,7 @@ function meta(){const st=(typeof stats==='function'&&S.dev.length)?stats():null;
    Le script Google dit si la connexion est demandée (action « config ») et quelles adresses sont acceptées.
    Une fois le code validé, l'appareil garde un jeton signé (60 jours) joint à chaque appel.
    Hors réseau, un appareil déjà reconnu continue de fonctionner normalement. */
-const SES_KEY='attila_doe_session',AUTHCFG_KEY='attila_doe_authcfg',PUBLIC_ACTIONS=['ping','config','demande_code','valide_code'];
+const SES_KEY='attila_doe_session',AUTHCFG_KEY='attila_doe_authcfg',PUBLIC_ACTIONS=['ping','config','agences','demande_code','valide_code'];
 let SES=null,authCfg=null,gEmailVal='',suiteFaite=false;
 function sesLoad(){try{const x=JSON.parse(localStorage.getItem(SES_KEY)||'null');if(x&&x.jeton&&x.exp>Date.now())return x}catch(e){}return null}
 function sesSave(x){SES=x;try{localStorage.setItem(SES_KEY,JSON.stringify(x))}catch(e){}}
@@ -651,7 +653,13 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden&&dirty)push
 
 /* ============ NAVIGATION ============ */
 function go(n){
-  n=Math.max(1,Math.min(6,n));S.step=n;save();
+  n=Math.max(1,Math.min(6,n));
+  if(S.step===1&&n>1&&n!==6&&!S.c.agence){   // l'agence conditionne l'accès au suivi : elle est obligatoire
+    const sel=$('#selAgence');
+    if(sel){sel.focus();sel.scrollIntoView({behavior:'smooth',block:'center'})}
+    toast("Choisissez l'agence avant de continuer : c'est elle qui rattache le chantier.");
+    return}
+  S.step=n;save();
   $$('section.step').forEach(s=>s.classList.toggle('on',+s.dataset.step===n));
   $$('#steps button').forEach(b=>{const k=+b.dataset.go;b.classList.toggle('on',k===n);b.classList.toggle('done',k<n)});
   $('#btnPrev').disabled=n===1;
@@ -668,9 +676,21 @@ $('#btnNext').onclick=()=>go(S.step+1);
 $('#btnNew').onclick=()=>{if(!confirm('Effacer ce chantier et en démarrer un nouveau ?'))return;S=fresh();fInit();for(const k in FILES)delete FILES[k];history.replaceState({},'',location.pathname);save();logEv('nouveau_chantier');fillFields();if(map){map.remove();map=null}renderDevList();go(1)};
 
 /* ============ CHAMPS ============ */
+let AGENCES=[];
+const AG_KEY='attila_doe_agences';
+function fillAgences(liste){
+  if(Array.isArray(liste)&&liste.length){AGENCES=liste;try{localStorage.setItem(AG_KEY,JSON.stringify(liste))}catch(e){}}
+  const sel=$('#selAgence');if(!sel)return;
+  const v=S.c.agence||'';
+  const hors=v&&!AGENCES.some(a=>a===v);
+  sel.innerHTML='<option value="">— Choisir l\'agence —</option>'
+    +(hors?`<option value="${esc(v)}">${esc(v)} (hors liste)</option>`:'')
+    +AGENCES.map(a=>`<option value="${esc(a)}">${esc(a)}</option>`).join('');
+  sel.value=v;
+}
 function fillFields(){
   $$('[data-k]').forEach(el=>{const v=getK(el.dataset.k);if(el.type==='checkbox')el.checked=!!v;else el.value=v??''});
-  refreshHints();
+  fillAgences();refreshHints();
 }
 document.addEventListener('input',onField);document.addEventListener('change',onField);
 function onField(e){
@@ -1366,6 +1386,7 @@ async function buildPDF(){
 
 /* ============ INIT ============ */
 function suiteConnexion(){if(suiteFaite)return;suiteFaite=true;   // reprise par lien et suivi d'usage, une fois l'appareil reconnu
+  api({action:'agences'}).then(j=>fillAgences(j.agences)).catch(()=>{});
   restoreFromLink().then(r=>{if(!r)logEv('ouverture')})}
 renderTools();fillFields();go(S.step||1);loadLib();
 (async()=>{
@@ -1373,6 +1394,8 @@ renderTools();fillFields();go(S.step||1);loadLib();
   if(!syncOn())return;
   setSync('','Sauvegarde en ligne active');
   const s=$('#btnSuivi');if(s){s.href=SUIVI_URL||new URL('reporting.html',location.href).href;s.hidden=false}
+  try{fillAgences(JSON.parse(localStorage.getItem(AG_KEY)||'null'))}catch(e){}   // dernière liste connue, utilisable hors réseau
+  api({action:'agences'}).then(j=>fillAgences(j.agences)).catch(()=>{});
   if(reconnu)suiteConnexion();else setSync('err','Connexion requise');
 })();
 </script>
