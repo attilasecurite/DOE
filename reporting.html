@@ -64,7 +64,7 @@ main{max-width:1280px;margin:0 auto;padding:18px}
 .dot{width:11px;height:11px;border-radius:50%;flex:0 0 auto;box-shadow:0 0 0 1.5px #fff,0 0 0 2.5px rgba(30,35,40,.28)}
 .dot.cours{background:var(--cours)}.dot.edit{background:var(--edit)}.dot.remis{background:var(--remis)}
 .legend .n{color:var(--mute);font-variant-numeric:tabular-nums}
-.geonote{position:absolute;z-index:500;left:12px;top:12px;background:rgba(255,255,255,.95);border:1px solid var(--line);border-left:3px solid var(--cours);border-radius:8px;padding:7px 11px;font-size:13px;max-width:min(74vw,330px)}
+.geonote{position:absolute;z-index:500;right:12px;top:58px;background:rgba(255,255,255,.95);border:1px solid var(--line);border-left:3px solid var(--cours);border-radius:8px;padding:7px 11px;font-size:13px;max-width:min(74vw,330px)}
 .mapvide{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:var(--mute);font-size:15px;background:#F2F4F6}
 
 .todo{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;min-height:0}
@@ -150,7 +150,7 @@ tr.tard{box-shadow:inset 3px 0 0 var(--alert)}
   .legend{left:8px;right:8px;bottom:8px;max-width:none;padding:7px 10px;font-size:12.5px;
           display:flex;align-items:center;gap:7px 14px;flex-wrap:wrap}
   .legend b{margin:0;font-size:15px}
-  .geonote{right:8px;left:8px;max-width:none;font-size:12.5px}
+  .geonote{right:8px;left:8px;top:56px;max-width:none;font-size:12.5px}
 }
 </style>
 </head>
@@ -247,6 +247,10 @@ const fmt=d=>{if(!d)return '—';const x=new Date(d);return isNaN(x)?'—':x.toL
 const jour=d=>{if(!d)return '—';const x=new Date(d);return isNaN(x)?'—':x.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'})};
 const jours=d=>{const x=new Date(d);return isNaN(x)?null:Math.floor((Date.now()-x)/864e5)};
 const MOIS=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+/* Beaucoup de chantiers sont ouverts avant d'avoir un nom de client : on prend
+   ce qui identifie le mieux, et en dernier recours la date d'ouverture. */
+const nomChantier=d=>String(d.client||d.site||d.reference||d.adresse||'').trim()
+  ||('Chantier ouvert le '+jour(d.cree_le));
 let DOSSIERS=[],STATS=null,filtreAgence='';
 
 /* ---------- états d'un chantier : une seule définition, utilisée partout ---------- */
@@ -391,7 +395,7 @@ function rendu(){
       <td><span class="eta"><span class="dot ${e}"></span>${E.t}</span>${tard?'<br><span class="src" style="color:var(--alert);font-weight:600">rien depuis '+j+' j</span>':''}</td>
       <td>${jour(d.maj_le)}</td>
       <td>${esc(d.agence)||'—'}${d.compte?'<br><span class="src">'+esc(d.compte)+'</span>':''}</td>
-      <td>${esc(d.client)||'—'}${d.site?'<br><span class="src">'+esc(d.site)+'</span>':''}</td>
+      <td>${esc(d.client||d.site)||'<span class="src">client non renseigné</span>'}${d.client&&d.site?'<br><span class="src">'+esc(d.site)+'</span>':''}</td>
       <td>${esc(d.reference)||'—'}</td>
       <td class="n">${d.nb_dispositifs||0}</td>
       <td>${docs.length?docs.map(x=>`<span class="tag ok">${x}</span>`).join(' '):'<span class="tag">aucune</span>'}</td>
@@ -408,7 +412,7 @@ function todo(rows){
   $('#todoList').innerHTML=l.length?l.slice(0,40).map(d=>{
     const j=jours(d.maj_le),e=etat(d);
     return `<li><button type="button" data-voir="${esc(d.id)}">
-      <span class="cli">${esc(d.client||d.site||d.reference||'Chantier sans nom')}</span>
+      <span class="cli">${esc(nomChantier(d))}</span>
       <span class="met"><span class="dot ${e}"></span>${ETAT[e].t}${d.agence?' · '+esc(d.agence):''}
         <span class="${enRetard(d)?'age':''}">${j!=null?j+' j':''}</span></span></button></li>`}).join('')
     +(l.length>40?`<li class="vide">et ${l.length-40} autre(s).</li>`:'')
@@ -431,10 +435,20 @@ function carte(){
   /* zoomSnap:0 — le cadrage prend la place exacte des chantiers au lieu d'arrondir
      au niveau de zoom inférieur, ce qui laissait la France minuscule au centre. */
   map=L.map('map',{zoomControl:true,scrollWheelZoom:true,zoomSnap:0,zoomDelta:1}).setView([46.7,2.4],5.4);
-  couche.plan=L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-    {maxZoom:19,subdomains:'abcd',attribution:'© OpenStreetMap, © CARTO'});
-  couche.sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    {maxZoom:19,attribution:'Esri World Imagery'});
+  /* Fonds de carte publics, sans clé : la Géoplateforme IGN, comme dans l'application.
+     Si ses tuiles ne répondent pas, on bascule tout seul sur un fond de secours. */
+  const ign=(couche_,fmt)=>'https://data.geopf.fr/wmts?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0'
+    +'&LAYER='+couche_+'&STYLE=normal&TILEMATRIXSET=PM&FORMAT=image/'+fmt
+    +'&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}';
+  couche.plan=L.tileLayer(ign('GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2','png'),
+    {maxZoom:19,attribution:'© IGN — Géoplateforme'});
+  couche.sat=L.tileLayer(ign('ORTHOIMAGERY.ORTHOPHOTOS','jpeg'),
+    {maxZoom:21,maxNativeZoom:19,attribution:'© IGN — Géoplateforme'});
+  couche.planBis=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {maxZoom:19,attribution:'© OpenStreetMap'});
+  couche.satBis=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    {maxZoom:21,maxNativeZoom:19,attribution:'Esri World Imagery'});
+  secours('plan');secours('sat');
   couche.plan.addTo(map);
   calque=L.layerGroup().addTo(map);
   /* La carte naît dans un bloc qui vient d'être affiché : sa taille réelle n'est
@@ -448,6 +462,21 @@ function cadrer(){
   map.invalidateSize(false);
   if(pointsVus.length===1)map.setView(pointsVus[0],15);
   else if(pointsVus.length)map.fitBounds(L.latLngBounds(pointsVus),{padding:[30,30],animate:false});
+}
+
+/* Un fond qui ne répond pas (service en panne, tuiles devenues payantes) est remplacé
+   par son secours au bout de quelques échecs, sans rien demander à personne. */
+function secours(q){
+  const orig=couche[q],bis=couche[q+'Bis'];
+  let rates=0,fait=false;
+  orig.on('tileerror',()=>{
+    if(fait||++rates<6)return;
+    fait=true;
+    const visible=map.hasLayer(orig);
+    if(visible)map.removeLayer(orig);
+    couche[q]=bis;
+    if(visible)bis.addTo(map);
+  });
 }
 
 function fond(q){
@@ -496,7 +525,7 @@ function majCarte(){
 function popup(d){
   const e=etat(d),E=ETAT[e];
   return `<div style="font:inherit;min-width:190px">
-    <div style="font-weight:700;font-size:15px">${esc(d.client||d.site||'Chantier')}</div>
+    <div style="font-weight:700;font-size:15px">${esc(nomChantier(d))}</div>
     ${d.site&&d.client?`<div style="color:#5E6770;font-size:13px">${esc(d.site)}</div>`:''}
     <div style="color:#5E6770;font-size:13px;margin-bottom:6px">${esc(d.adresse||'')}</div>
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
