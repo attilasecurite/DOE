@@ -110,7 +110,7 @@ let DOSSIERS=[],STATS=null;
 
 /* Connexion par code reçu par e-mail : même appareil reconnu que dans l'outil, quand les deux
    pages sont servies par la même adresse de site. */
-const SES_KEY='attila_doe_session',PUBLIC_ACTIONS=['ping','config','demande_code','valide_code'];
+const SES_KEY='attila_doe_session',PUBLIC_ACTIONS=['ping','config','agences','demande_code','valide_code'];
 let authCfg=null,gEmailVal='';
 function sesLoad(){try{const x=JSON.parse(localStorage.getItem(SES_KEY)||'null');if(x&&x.jeton&&x.exp>Date.now())return x}catch(e){}return null}
 function sesClear(){try{localStorage.removeItem(SES_KEY)}catch(e){}}
