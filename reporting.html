@@ -13,9 +13,9 @@
   --red:#C0392B;          /* marque ATTILA : bandeau et accent principal, nulle part ailleurs */
   --ink:#1E2328;--mute:#5E6770;--faint:#8A939C;
   --line:#D9DEE3;--hair:#E8ECEF;--bg:#EDF0F2;--card:#fff;
-  --cours:#E69138;        /* chantier en cours */
-  --edit:#1565C0;         /* DOE édité, pas encore remis */
-  --remis:#38761D;        /* remis au client : clôturé */
+  --cours:#C96A00;        /* chantier en cours : anneau creux */
+  --edit:#1457A8;         /* DOE édité, pas encore remis : point bleu « ! » */
+  --remis:#2E7D32;        /* remis au client : point vert « ✓ » */
   --alert:#9B1B14;        /* retard */
 }
 *{box-sizing:border-box}
@@ -61,8 +61,22 @@ main{max-width:1280px;margin:0 auto;padding:18px}
 .legend{position:absolute;z-index:500;left:12px;bottom:12px;background:rgba(255,255,255,.95);border:1px solid var(--line);border-radius:9px;padding:9px 12px;font-size:13.5px;box-shadow:0 2px 8px rgba(30,35,40,.14);max-width:min(74vw,330px)}
 .legend b{font-family:"Barlow Condensed",sans-serif;font-size:17px;font-weight:600;display:block;margin-bottom:5px}
 .legend div{display:flex;align-items:center;gap:7px;white-space:nowrap}
-.dot{width:11px;height:11px;border-radius:50%;flex:0 0 auto;box-shadow:0 0 0 1.5px #fff,0 0 0 2.5px rgba(30,35,40,.28)}
-.dot.cours{background:var(--cours)}.dot.edit{background:var(--edit)}.dot.remis{background:var(--remis)}
+/* Trois états, trois formes : anneau creux, point « ! », point « ✓ ». La couleur
+   seule ne suffisait pas, ni sur la carte ni pour qui distingue mal le vert du rouge. */
+.pst{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;
+     width:18px;height:18px;border-radius:50%;font:700 12px/1 "Barlow Condensed",Barlow,sans-serif;
+     color:#fff;border:2px solid #fff;box-shadow:0 0 0 1px rgba(30,35,40,.22)}
+.pst.cours{background:#fff;border:3.5px solid var(--cours);box-shadow:0 0 0 1px rgba(30,35,40,.18)}
+.pst.edit{background:var(--edit)}
+.pst.remis{background:var(--remis)}
+.leaflet-div-icon{background:none;border:0}
+.mk{display:flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;
+    font:700 18px/1 "Barlow Condensed",Barlow,sans-serif;color:#fff;border:3px solid #fff;
+    box-shadow:0 2px 5px rgba(16,20,24,.55)}
+.mk.cours{background:#fff;border:6px solid var(--cours)}
+.mk.edit{background:var(--edit)}
+.mk.remis{background:var(--remis)}
+.mk.tard{box-shadow:0 0 0 3px var(--alert),0 2px 6px rgba(16,20,24,.55)}
 .legend .n{color:var(--mute);font-variant-numeric:tabular-nums}
 .geonote{position:absolute;z-index:500;right:12px;top:58px;background:rgba(255,255,255,.95);border:1px solid var(--line);border-left:3px solid var(--cours);border-radius:8px;padding:7px 11px;font-size:13px;max-width:min(74vw,330px)}
 .mapvide{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:var(--mute);font-size:15px;background:#F2F4F6}
@@ -261,8 +275,7 @@ function etat(d){
   return 'cours';
 }
 const enRetard=d=>!d.doe_genere_le&&(jours(d.maj_le)??0)>RETARD_JOURS;
-const ETAT={cours:{t:'En cours',c:'co'},edit:{t:'À remettre',c:'ed'},remis:{t:'Remis',c:'ok'}};
-const COUL={cours:'#E69138',edit:'#1565C0',remis:'#38761D'};
+const ETAT={cours:{t:'En cours',c:'co',g:''},edit:{t:'À remettre',c:'ed',g:'!'},remis:{t:'Remis',c:'ok',g:'\u2713'}};
 
 /* ---------- connexion par code reçu par e-mail ----------
    Même appareil reconnu que dans l'outil, quand les deux pages sont servies
@@ -392,7 +405,7 @@ function rendu(){
         +(d.remis_le?`<br><span class="tag ok">Remis le ${jour(d.remis_le)}</span>`:'')
       : `<span class="tag co">étape ${d.etape||1} sur 5</span>`;
     return `<tr${tard?' class="tard"':''}>
-      <td><span class="eta"><span class="dot ${e}"></span>${E.t}</span>${tard?'<br><span class="src" style="color:var(--alert);font-weight:600">rien depuis '+j+' j</span>':''}</td>
+      <td><span class="eta"><span class="pst ${e}">${E.g}</span>${E.t}</span>${tard?'<br><span class="src" style="color:var(--alert);font-weight:600">rien depuis '+j+' j</span>':''}</td>
       <td>${jour(d.maj_le)}</td>
       <td>${esc(d.agence)||'—'}${d.compte?'<br><span class="src">'+esc(d.compte)+'</span>':''}</td>
       <td>${esc(d.client||d.site)||'<span class="src">client non renseigné</span>'}${d.client&&d.site?'<br><span class="src">'+esc(d.site)+'</span>':''}</td>
@@ -413,7 +426,7 @@ function todo(rows){
     const j=jours(d.maj_le),e=etat(d);
     return `<li><button type="button" data-voir="${esc(d.id)}">
       <span class="cli">${esc(nomChantier(d))}</span>
-      <span class="met"><span class="dot ${e}"></span>${ETAT[e].t}${d.agence?' · '+esc(d.agence):''}
+      <span class="met"><span class="pst ${e}">${ETAT[e].g}</span>${ETAT[e].t}${d.agence?' · '+esc(d.agence):''}
         <span class="${enRetard(d)?'age':''}">${j!=null?j+' j':''}</span></span></button></li>`}).join('')
     +(l.length>40?`<li class="vide">et ${l.length-40} autre(s).</li>`:'')
     :'<li class="vide">Rien à clôturer : tous les DOE du périmètre ont été remis.</li>';
@@ -500,18 +513,20 @@ function majCarte(){
     const e=etat(d);n[e]++;
     const c=coord(d);
     if(!c){sans++;return}
-    const r=6+Math.min(5,Math.round((Number(d.nb_dispositifs)||0)/2));
-    if(enRetard(d))L.circleMarker(c,{radius:r+6,stroke:false,fillColor:'#9B1B14',fillOpacity:.18,interactive:false}).addTo(calque);
-    const m=L.circleMarker(c,{radius:r,color:'#fff',weight:2,fillColor:COUL[e],fillOpacity:1});
+    const tard=enRetard(d);
+    const m=L.marker(c,{
+      icon:L.divIcon({className:'mk '+e+(tard?' tard':''),html:ETAT[e].g,iconSize:[30,30],iconAnchor:[15,15]}),
+      zIndexOffset:(e==='cours'?0:e==='edit'?400:200)+(tard?600:0),
+      title:nomChantier(d)+' — '+ETAT[e].t});
     m.bindPopup(popup(d),{maxWidth:280});
     m.addTo(calque);marqueurs[d.id]=m;pts.push(c);
   });
   const total=rows.length;
   $('#legend').hidden=!total;
   $('#legend').innerHTML=`<b>${num(total)} chantier${total>1?'s':''}${filtreAgence?' — '+esc(filtreAgence):''}</b>
-    <div><span class="dot cours"></span>En cours <span class="n">${n.cours}</span></div>
-    <div><span class="dot edit"></span>DOE à remettre <span class="n">${n.edit}</span></div>
-    <div><span class="dot remis"></span>Remis au client <span class="n">${n.remis}</span></div>`;
+    <div><span class="pst cours"></span>En cours <span class="n">${n.cours}</span></div>
+    <div><span class="pst edit">!</span>DOE à remettre <span class="n">${n.edit}</span></div>
+    <div><span class="pst remis">\u2713</span>Remis au client <span class="n">${n.remis}</span></div>`;
   $('#mapvide').hidden=!!pts.length;
   if(!pts.length)$('#mapvide').textContent=total
     ? 'Aucun de ces chantiers n\'a de position connue. Renseignez l\'adresse à l\'étape 1 de l\'application : elle les place ici.'
@@ -529,7 +544,7 @@ function popup(d){
     ${d.site&&d.client?`<div style="color:#5E6770;font-size:13px">${esc(d.site)}</div>`:''}
     <div style="color:#5E6770;font-size:13px;margin-bottom:6px">${esc(d.adresse||'')}</div>
     <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-      <span class="dot ${e}"></span><b>${E.t}</b></div>
+      <span class="pst ${e}">${E.g}</span><b>${E.t}</b></div>
     <div style="font-size:13px;color:#5E6770">${esc(d.agence||'')}${d.reference?' — réf. '+esc(d.reference):''}<br>
       ${d.nb_dispositifs||0} dispositif(s), ${num(Math.round(d.metres||0))} m<br>
       ${d.doe_genere_le?'DOE édité le '+jour(d.doe_genere_le):'DOE non édité'}${d.remis_le?', remis le '+jour(d.remis_le):''}</div>
