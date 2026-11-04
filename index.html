@@ -358,6 +358,10 @@ nav.steps button.lib{margin-left:auto;border-left:1px solid rgba(255,255,255,.3)
     <h3>Remise du DOE</h3>
     <div id="finalCheck"></div>
     <button class="btn red" id="btnPdf" type="button" style="width:100%;margin-top:10px">Générer le DOE (PDF avec annexes)</button>
+    <div class="hint" id="remiseBox" hidden style="margin-top:10px">
+      <label class="chk" style="margin:0"><input type="checkbox" data-k="remis"> Le DOE a été remis au client</label>
+      <div class="src" id="remiseTxt" style="margin-top:4px"></div>
+    </div>
     <p class="src" style="margin-top:14px">Textes cités : <a href="https://code.travail.gouv.fr/code-du-travail/r4211-3" target="_blank" rel="noopener">C. trav. R4211-3 (DMLT)</a> ; <a href="https://code.travail.gouv.fr/code-du-travail/r4224-17" target="_blank" rel="noopener">C. trav. R4224-17 (entretien et vérification)</a> ; <a href="https://www.code-commande-publique.com/ccag-travaux-article-40" target="_blank" rel="noopener">CCAG Travaux 2021 art. 40</a> ; <a href="https://www.inrs.fr/publications/juridique/focus-juridiques/focus-juridique-controle-periodiques-equipements-obligations-employeur.html" target="_blank" rel="noopener">INRS — contrôles périodiques</a>.</p>
   </div>
 </section>
@@ -542,7 +546,7 @@ const SUIVI_URL='';
 const newId=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 const fresh=()=>({step:1,c:{adresse:'',lat:null,lng:null,client:'',site:'',contact:'',agence:'',charge:''},
   p:{ref:'',fournisseur:'Ajuva Safety',be:'',support:'bac_sec',debut:'',reception:'',perio:'12',verif:'client',forme:false},
-  mode:'map',img:null,dev:[],na:{},cnt:{},links:{},memo:true,did:newId()});
+  mode:'map',img:null,dev:[],na:{},cnt:{},links:{},memo:true,doeAt:null,remis:false,did:newId()});
 let S; try{S=JSON.parse(localStorage.getItem(KEY))||fresh()}catch(e){S=fresh()}
 S.links=S.links||{};S.did=S.did||newId();if(/^juva$/i.test(S.p.fournisseur||''))S.p.fournisseur='Ajuva Safety';if(S.p.support==='bac')S.p.support='bac_sec';if(S.memo===undefined)S.memo=true;
 const FILES={}; // docId -> [{name,kind,bytes}]
@@ -563,6 +567,7 @@ function meta(){const st=(typeof stats==='function'&&S.dev.length)?stats():null;
   return{agence:S.c.agence,client:S.c.client,site:S.c.site,adresse:S.c.adresse,reference:S.p.ref,etape:S.step,
     nbDisp:S.dev.length,metres:+S.dev.reduce((s,d)=>s+(devLen(d)||0),0).toFixed(1),
     piecesOk:st?st.done:0,piecesAttendues:st?st.need.length:0,
+    lat:S.c.lat||'',lon:S.c.lng||'',remis:!!S.remis,
     pv:!!S.forms?.pv?.signedAt,att:!!S.forms?.att?.signedAt,reg:!!S.forms?.reg?.signedAt}}
 /* ---------- Connexion par code reçu par e-mail ----------
    Le script Google dit si la connexion est demandée (action « config ») et quelles adresses sont acceptées.
@@ -1136,13 +1141,22 @@ function renderFinal(){
   $('#finalCheck').innerHTML=(miss.length?`<div class="hint warn"><b>À compléter :</b> ${miss.join(', ')}.</div>`:'')+
     (st.missing.length?`<div class="hint ko"><b>${st.missing.length} pièce(s) manquante(s)</b> : le DOE sera marqué « provisoire ».<br><span class="src">${st.missing.map(d=>esc(d.label)).join(' ; ')}</span></div>`
     :`<div class="hint ok"><b>Toutes les pièces attendues sont fournies</b> : le DOE sera marqué « complet ».</div>`);
+  const rb=$('#remiseBox'),rt=$('#remiseTxt');
+  if(rb){
+    rb.hidden=!S.doeAt;
+    rb.className='hint'+(S.remis?' ok':'');
+    if(rt)rt.textContent=S.remis
+      ? 'Chantier clôturé dans le suivi réseau.'
+      : 'DOE édité le '+new Date(S.doeAt||Date.now()).toLocaleDateString('fr-FR')
+        +'. Sans cette case, le chantier reste signalé « à remettre » dans le suivi réseau.';
+  }
 }
 $('#btnPdf').onclick=async()=>{
   if(!window.PDFLib){toast('Module PDF non chargé : vérifiez la connexion');return}
   $('#busy').classList.add('on');
   try{const bytes=await buildPDF();const blob=new Blob([bytes],{type:'application/pdf'});const a=document.createElement('a');
     a.href=URL.createObjectURL(blob);a.download=`DOE_securisation_${(S.p.ref||S.c.client||'chantier').replace(/[^\w-]+/g,'_')}_${new Date().toISOString().slice(0,10)}.pdf`;
-    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);logEv('doe_genere',`${S.dev.length} dispositif(s)`);pushSync({doe:true});toast(MISSING.length?`DOE généré — ${MISSING.length} fiche(s) non trouvée(s) sur Git : ${MISSING.join(', ')}`:'DOE généré');}
+    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000);logEv('doe_genere',`${S.dev.length} dispositif(s)`);S.doeAt=new Date().toISOString();save();renderFinal();pushSync({doe:true});toast(MISSING.length?`DOE généré — ${MISSING.length} fiche(s) non trouvée(s) sur Git : ${MISSING.join(', ')}`:'DOE généré');}
   catch(err){console.error(err);toast('Échec de la génération : '+(err.message||err))}
   finally{$('#busy').classList.remove('on')}
 };

@@ -6,92 +6,230 @@
 <title>DOE sécurisation — suivi réseau</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
-:root{--red:#C0392B;--ink:#1E2328;--mute:#5E6770;--line:#D5DADF;--bg:#ECEFF1;--card:#fff;--ok:#38761D;--warn:#E69138;--ko:#CC0000}
+:root{
+  --red:#C0392B;          /* marque ATTILA : bandeau et accent principal, nulle part ailleurs */
+  --ink:#1E2328;--mute:#5E6770;--faint:#8A939C;
+  --line:#D9DEE3;--hair:#E8ECEF;--bg:#EDF0F2;--card:#fff;
+  --cours:#E69138;        /* chantier en cours */
+  --edit:#1565C0;         /* DOE édité, pas encore remis */
+  --remis:#38761D;        /* remis au client : clôturé */
+  --alert:#9B1B14;        /* retard */
+}
 *{box-sizing:border-box}
-body{margin:0;font-family:Barlow,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:16px}
-header{background:var(--red);color:#fff;padding:14px 16px}
-header div{max-width:1200px;margin:0 auto;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-h1{font-family:"Barlow Condensed",sans-serif;font-size:22px;margin:0;flex:1;line-height:1.15}
-h1 small{display:block;font-family:Barlow,sans-serif;font-weight:500;font-size:13px;opacity:.85}
-main{max-width:1200px;margin:0 auto;padding:16px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:14px}
-h2{font-family:"Barlow Condensed",sans-serif;font-size:20px;margin:0 0 12px}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
-.kpi{background:#F4F6F7;border-radius:10px;padding:14px;border-left:5px solid var(--red)}
-.kpi b{display:block;font-family:"Barlow Condensed",sans-serif;font-size:30px;line-height:1}
-.kpi span{font-size:13px;color:var(--mute)}
-table{border-collapse:collapse;width:100%;font-size:14px}
-th,td{border-bottom:1px solid var(--line);padding:9px 8px;text-align:left;vertical-align:top}
-th{background:#F4F6F7;font-size:13px;position:sticky;top:0}
+[hidden]{display:none!important}   /* sinon une classe qui pose display gagne contre l'attribut */
+html{-webkit-text-size-adjust:100%}
+body{margin:0;font-family:Barlow,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--ink);font-size:16px;line-height:1.45}
+.cond{font-family:"Barlow Condensed",Barlow,sans-serif}
+h1,h2,h3{font-family:"Barlow Condensed",Barlow,sans-serif;font-weight:600;margin:0}
+a{color:#13518F;text-decoration-thickness:1px;text-underline-offset:2px}
+:focus-visible{outline:2.5px solid var(--edit);outline-offset:2px}
+
+/* ---------- bandeau ---------- */
+.mast{background:var(--red);color:#fff}
+.mast .in{max-width:1280px;margin:0 auto;padding:12px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.mast h1{font-size:23px;letter-spacing:.2px;line-height:1.1}
+.mast h1 b{font-weight:700}
+.mast h1 span{display:block;font-family:Barlow,sans-serif;font-weight:500;font-size:13px;opacity:.88;letter-spacing:0}
+.mast .sp{flex:1}
+.who{display:flex;align-items:center;gap:10px;font-size:14px}
+.btn{font:inherit;font-weight:600;padding:8px 13px;border-radius:7px;border:1.5px solid rgba(255,255,255,.55);background:transparent;color:#fff;cursor:pointer}
+.btn:hover{background:rgba(255,255,255,.14)}
+main{max-width:1280px;margin:0 auto;padding:18px}
+
+/* ---------- blocs ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px}
+.card>h2{font-size:21px;margin-bottom:3px}
+.card>h2+.sub{color:var(--mute);font-size:14px;margin:0 0 14px}
+.src{font-size:13.5px;color:var(--mute)}
+.msg{font-size:14.5px;padding:11px 14px;border-radius:9px;background:#fff;border:1px solid var(--line);border-left:4px solid var(--edit);margin-bottom:16px}
+.msg.ko{border-left-color:var(--alert);background:#FCF0EF}
+.perim{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.16);border-radius:20px;padding:4px 13px;font-size:13.5px}
+
+/* ---------- carte + panneau ---------- */
+.band{display:grid;grid-template-columns:1fr;gap:16px;margin-bottom:16px}
+@media(min-width:1040px){.band{grid-template-columns:minmax(0,1fr) 330px}.mapwrap,.todo{height:520px}}
+.mapwrap{position:relative;background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;min-height:430px}
+#map{position:absolute;inset:0;background:#DEE3E6}
+.leaflet-container{font:inherit}
+.mapbar{position:absolute;z-index:500;top:12px;right:12px;display:flex;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(30,35,40,.14)}
+.mapbar button{font:inherit;font-size:14px;font-weight:600;border:0;background:#fff;color:var(--mute);padding:7px 13px;cursor:pointer}
+.mapbar button+button{border-left:1px solid var(--hair)}
+.mapbar button[aria-pressed=true]{background:var(--ink);color:#fff}
+.legend{position:absolute;z-index:500;left:12px;bottom:12px;background:rgba(255,255,255,.95);border:1px solid var(--line);border-radius:9px;padding:9px 12px;font-size:13.5px;box-shadow:0 2px 8px rgba(30,35,40,.14);max-width:min(74vw,330px)}
+.legend b{font-family:"Barlow Condensed",sans-serif;font-size:17px;font-weight:600;display:block;margin-bottom:5px}
+.legend div{display:flex;align-items:center;gap:7px;white-space:nowrap}
+.dot{width:11px;height:11px;border-radius:50%;flex:0 0 auto;box-shadow:0 0 0 1.5px #fff,0 0 0 2.5px rgba(30,35,40,.28)}
+.dot.cours{background:var(--cours)}.dot.edit{background:var(--edit)}.dot.remis{background:var(--remis)}
+.legend .n{color:var(--mute);font-variant-numeric:tabular-nums}
+.geonote{position:absolute;z-index:500;left:12px;top:12px;background:rgba(255,255,255,.95);border:1px solid var(--line);border-left:3px solid var(--cours);border-radius:8px;padding:7px 11px;font-size:13px;max-width:min(74vw,330px)}
+.mapvide{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px;color:var(--mute);font-size:15px;background:#F2F4F6}
+
+.todo{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;display:flex;flex-direction:column;min-height:0}
+.todo h2{font-size:20px}
+.todo .sub{font-size:13.5px;color:var(--mute);margin:2px 0 12px}
+.todo{overflow:hidden}
+.todo ol{list-style:none;margin:0;padding:0;overflow:auto;flex:1 1 auto;min-height:0}
+.todo li{border-top:1px solid var(--hair);padding:9px 0}
+.todo li:first-child{border-top:0}
+.todo button{display:block;width:100%;text-align:left;background:none;border:0;font:inherit;cursor:pointer;padding:2px 0;border-radius:6px}
+.todo button:hover .cli{text-decoration:underline}
+.todo .cli{font-weight:600;display:block}
+.todo .met{font-size:13px;color:var(--mute);display:flex;gap:7px;flex-wrap:wrap;align-items:center;margin-top:1px}
+.todo .age{color:var(--alert);font-weight:600}
+.todo .vide{color:var(--mute);font-size:14.5px;border:0;padding:14px 0}
+
+/* ---------- bandeau de chiffres ---------- */
+.chiffres{display:flex;flex-wrap:wrap;align-items:stretch;gap:0;background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:16px;overflow:hidden}
+.ch{padding:14px 20px;border-left:1px solid var(--hair);flex:1 1 130px;min-width:0}
+.ch:first-child{border-left:0;flex:1 1 230px;background:#FAFBFC}
+.ch b{display:block;font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:34px;line-height:1;font-variant-numeric:tabular-nums}
+.ch:first-child b{font-size:46px}
+.ch span{display:block;font-size:13.5px;color:var(--mute);margin-top:3px}
+.jauge{height:7px;border-radius:4px;background:#E3E7EA;overflow:hidden;margin-top:9px}
+.jauge i{display:block;height:100%;background:var(--remis)}
+
+/* ---------- mois ---------- */
+.mois{display:flex;align-items:flex-end;gap:8px;height:160px;border-bottom:1.5px solid var(--line);padding-bottom:0}
+.mois>div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:0;min-width:0}
+.mois i{display:block;width:100%;max-width:46px;min-height:2px}
+.mois i.a{background:var(--edit);border-radius:3px 3px 0 0}
+.mois i.b{background:#BFD3E8}
+.mois em{font-style:normal;font-size:12.5px;color:var(--mute);font-variant-numeric:tabular-nums;margin-bottom:3px}
+.moisx{display:flex;gap:8px;margin-top:5px}
+.moisx>div{flex:1;text-align:center;font-size:12.5px;color:var(--mute)}
+.cle{display:flex;gap:16px;flex-wrap:wrap;font-size:13.5px;color:var(--mute);margin-top:12px}
+.cle span{display:flex;align-items:center;gap:6px}
+.cle i{width:12px;height:12px;border-radius:3px;display:block}
+
+/* ---------- tables ---------- */
+.wrap{overflow:auto;max-height:68vh;border:1px solid var(--hair);border-radius:9px}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+th,td{padding:9px 11px;text-align:left;vertical-align:top;border-bottom:1px solid var(--hair)}
+th{background:#F5F7F8;font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:14.5px;position:sticky;top:0;z-index:2;border-bottom:1.5px solid var(--line);white-space:nowrap}
+tbody tr:hover{background:#F8FAFB}
+tbody tr:last-child td{border-bottom:0}
 td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
-.wrap{overflow:auto;max-height:70vh}
-a{color:#1565C0}
-.bar{height:9px;background:#E3E7EA;border-radius:5px;overflow:hidden;min-width:60px}
-.bar div{height:100%;background:var(--red)}
-input,select,button{font:inherit;padding:9px 11px;border:1.5px solid var(--line);border-radius:8px;background:#fff}
-button{background:var(--red);color:#fff;border:0;font-weight:700;cursor:pointer}
-button.line{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
-.tools{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
-.tools input{flex:1 1 220px}
-.tag{font-size:12px;font-weight:700;padding:3px 8px;border-radius:12px;background:#EEF0F2;color:var(--mute)}
-.tag.ok{background:#EDF5EA;color:var(--ok)}
-.tag.cours{background:#FDF4EA;color:#B26A1D}
-.hint{font-size:14px;padding:10px 12px;border-radius:8px;background:#F4F6F7;border-left:4px solid #1565C0;margin-bottom:12px}
-.hint.ko{border-left-color:var(--ko);background:#FBEAEA}
-.who{display:flex;align-items:center;gap:8px;font-size:14px;color:#fff}
-.gate{max-width:470px;display:flex;flex-direction:column;gap:8px;margin-top:6px}
-.gate input{font:inherit;font-size:16px;padding:9px 11px;border:1.5px solid var(--line);border-radius:8px}
-.gate #gCode{font-size:22px;letter-spacing:4px;max-width:190px}
-.gate button{align-self:flex-start}
-.gate .err{color:var(--ko);font-size:14px;min-height:18px}
-.perim{background:#F4F6F7;border-left:4px solid #1565C0;border-radius:8px;padding:9px 12px;font-size:14px;margin-bottom:12px}
-.mois{display:flex;align-items:flex-end;gap:6px;height:150px;margin-top:10px}
-.mois div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;font-size:11px;color:var(--mute)}
-.mois i{display:block;width:100%;background:var(--red);border-radius:4px 4px 0 0;min-height:2px}
-.mois i.b{background:#E8B4AE}
-.src{font-size:13px;color:var(--mute)}
+tr.ag{cursor:pointer}
+tr.ag[aria-selected=true]{background:#FFF6F5;box-shadow:inset 3px 0 0 var(--red)}
+tr.tard{box-shadow:inset 3px 0 0 var(--alert)}
+.eta{display:flex;align-items:center;gap:7px;white-space:nowrap}
+.tag{display:inline-block;font-size:12.5px;font-weight:600;padding:2px 8px;border-radius:11px;background:#EFF1F3;color:var(--mute);white-space:nowrap}
+.tag.ok{background:#EBF3E8;color:var(--remis)}
+.tag.ed{background:#E8F0F9;color:var(--edit)}
+.tag.co{background:#FCF3E7;color:#A9661B}
+.bar{height:7px;background:#E3E7EA;border-radius:4px;overflow:hidden;min-width:56px}
+.bar i{display:block;height:100%;background:var(--edit)}
+.outils{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:12px}
+.outils input,.outils select{font:inherit;padding:9px 12px;border:1.5px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+.outils input{flex:1 1 230px;min-width:0}
+.puce{display:inline-flex;align-items:center;gap:7px;background:#FFF6F5;border:1.5px solid #EBC4BF;border-radius:20px;padding:6px 8px 6px 13px;font-size:14px}
+.puce button{font:inherit;border:0;background:#E7D2CF;color:#6B2A22;width:21px;height:21px;border-radius:50%;cursor:pointer;line-height:1}
+.act{font-weight:600;background:none;border:0;font:inherit;color:#13518F;cursor:pointer;padding:0;text-decoration:underline;text-underline-offset:2px}
+
+/* ---------- connexion ---------- */
+.gate{max-width:470px;display:flex;flex-direction:column;gap:9px;margin-top:9px}
+.gate input{font:inherit;font-size:16px;padding:10px 12px;border:1.5px solid var(--line);border-radius:8px}
+.gate #gCode{font-size:23px;letter-spacing:5px;max-width:200px;font-variant-numeric:tabular-nums}
+.gate .go{align-self:flex-start;background:var(--red);color:#fff;border:0;font-weight:700;padding:10px 16px;border-radius:8px;cursor:pointer}
+.err{color:var(--alert);font-size:14px;min-height:18px;font-weight:600}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media(max-width:700px){
+  main{padding:12px}.card{padding:14px}.mapwrap{min-height:340px}
+  .ch{flex:1 1 44%}.ch:first-child{flex:1 1 100%}
+  .mast .in{padding:10px 12px;gap:8px}
+  .mast h1{flex:1 1 100%;font-size:20px}
+  .btn{padding:6px 11px;font-size:14.5px}
+  .who{margin-left:auto;gap:7px}.who #whoName{display:none}
+  .perim{font-size:13px;padding:3px 11px}
+  .todo ol{max-height:320px}
+  .wrap{max-height:62vh}
+  /* sur téléphone la légende devient un bandeau : elle mangeait un quart de la carte */
+  .legend{left:8px;right:8px;bottom:8px;max-width:none;padding:7px 10px;font-size:12.5px;
+          display:flex;align-items:center;gap:7px 14px;flex-wrap:wrap}
+  .legend b{margin:0;font-size:15px}
+  .geonote{right:8px;left:8px;max-width:none;font-size:12.5px}
+}
 </style>
 </head>
 <body>
-<header><div>
-  <h1>DOE sécurisation de toiture<small>Suivi d'usage du réseau ATTILA</small></h1>
-  <button class="line" id="btnRefresh" type="button">Actualiser</button>
-  <button class="line" id="btnCsv" type="button">Export CSV</button>
-  <span class="who" id="who" hidden><span id="whoName"></span><button class="line" id="btnLogout" type="button">Déconnexion</button></span>
+<header class="mast"><div class="in">
+  <h1><b>DOE sécurisation de toiture</b><span>Suivi des chantiers du réseau ATTILA</span></h1>
+  <span class="perim" id="perim" hidden></span>
+  <span class="sp"></span>
+  <button class="btn" id="btnRefresh" type="button">Actualiser</button>
+  <button class="btn" id="btnCsv" type="button">Exporter en CSV</button>
+  <span class="who" id="who" hidden><span id="whoName"></span><button class="btn" id="btnLogout" type="button">Déconnexion</button></span>
 </div></header>
+
 <main>
   <div id="state"></div>
 
-  <div class="card"><h2>Vue d'ensemble</h2><div class="kpis" id="kpis"></div></div>
+  <div id="tableau" hidden>
+    <section class="band">
+      <div class="mapwrap">
+        <div id="map"></div>
+        <div class="mapbar">
+          <button type="button" id="btnPlan" aria-pressed="true">Plan</button>
+          <button type="button" id="btnSat" aria-pressed="false">Satellite</button>
+        </div>
+        <div class="legend" id="legend" hidden></div>
+        <div class="geonote" id="geonote" hidden></div>
+        <div class="mapvide" id="mapvide" hidden></div>
+      </div>
+      <aside class="todo">
+        <h2>À clôturer</h2>
+        <p class="sub">Chantiers dont le DOE n'est pas encore remis au client. Les plus anciens d'abord.</p>
+        <ol id="todoList"></ol>
+      </aside>
+    </section>
 
-  <div class="card"><h2>Dossiers créés par mois</h2><div class="mois" id="mois"></div>
-    <p class="src">Barre pleine : dossiers ouverts. Barre claire : DOE effectivement générés.</p></div>
+    <div class="chiffres" id="chiffres"></div>
 
-  <div class="card"><h2>Usage par agence</h2>
-    <div class="wrap"><table id="tAgences"><thead><tr>
-      <th>Agence</th><th class="n">Dossiers</th><th class="n">DOE générés</th><th>Taux</th>
-      <th class="n">Dispositifs</th><th class="n">Mètres</th><th>Dernière activité</th>
-    </tr></thead><tbody></tbody></table></div></div>
+    <section class="card">
+      <h2>Rythme d'ouverture des chantiers</h2>
+      <p class="sub">Douze derniers mois.</p>
+      <div class="mois" id="mois"></div>
+      <div class="moisx" id="moisx"></div>
+      <div class="cle"><span><i style="background:var(--edit)"></i>DOE édité</span><span><i style="background:#BFD3E8"></i>Chantier encore ouvert</span></div>
+    </section>
 
-  <div class="card"><h2>Répertoire partagé des chantiers</h2>
-    <div class="tools">
-      <input id="q" placeholder="Rechercher : agence, client, site, référence…">
-      <select id="filtre">
-        <option value="">Tous les dossiers</option>
-        <option value="doe">DOE généré</option>
-        <option value="cours">En cours</option>
-        <option value="nosign">Sans PV signé</option>
-      </select>
-    </div>
-    <div class="wrap"><table id="tDossiers"><thead><tr>
-      <th>Mise à jour</th><th>Agence</th><th>Client / site</th><th>Réf.</th>
-      <th class="n">Disp.</th><th>Documents</th><th>État</th><th>Ouvrir</th>
-    </tr></thead><tbody></tbody></table></div>
-    <p class="src">« Reprendre » rouvre le chantier dans l'application, à l'étape où il a été laissé. « Données » ouvre le fichier du dossier sur le Drive. Application visée : <span id="appCible"></span></p></div>
+    <section class="card">
+      <h2>Par agence</h2>
+      <p class="sub">Cliquez une agence pour ne garder que ses chantiers sur la carte et dans la liste.</p>
+      <div class="wrap"><table id="tAgences"><thead><tr>
+        <th>Agence</th><th class="n">Chantiers</th><th class="n">DOE édités</th><th class="n">Remis</th>
+        <th>Avancement</th><th class="n">Dispositifs</th><th class="n">Mètres</th><th>Dernière activité</th>
+      </tr></thead><tbody></tbody></table></div>
+    </section>
+
+    <section class="card">
+      <h2>Répertoire des chantiers</h2>
+      <p class="sub" id="nbDossiers"></p>
+      <div class="outils">
+        <input id="q" placeholder="Rechercher une agence, un client, un site, une référence…" aria-label="Rechercher">
+        <select id="filtre" aria-label="Filtrer par état">
+          <option value="">Tous les chantiers</option>
+          <option value="aclore">À clôturer : DOE non remis</option>
+          <option value="jamais">Jamais édité</option>
+          <option value="tard">En retard : rien depuis 30 jours</option>
+          <option value="remis">Remis au client</option>
+          <option value="nopv">Sans PV de réception signé</option>
+        </select>
+        <span class="puce" id="puceAgence" hidden><span id="puceTxt"></span><button type="button" id="puceX" aria-label="Retirer le filtre d'agence">×</button></span>
+      </div>
+      <div class="wrap"><table id="tDossiers"><thead><tr>
+        <th>État</th><th>Mise à jour</th><th>Agence</th><th>Client / site</th><th>Réf.</th>
+        <th class="n">Disp.</th><th>Pièces</th><th>DOE</th><th>Ouvrir</th>
+      </tr></thead><tbody></tbody></table></div>
+      <p class="src" style="margin-top:12px">« Reprendre » rouvre le chantier dans l'application, à l'étape où il a été laissé. « Données » ouvre son fichier sur le Drive. Application visée : <span id="appCible"></span></p>
+    </section>
+  </div>
 </main>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
 /* URL du déploiement Apps Script (/exec) — la même que dans index.html */
 const API_URL='https://script.google.com/macros/s/AKfycbwrleCpyJ4W8ygiyS-di0LXOdb_12v-FGlBfuQIem4BtVIMASXJ5KI_t1B2jYortJH9/exec';
@@ -104,12 +242,27 @@ const APP=new URLSearchParams(location.search).get('app')||APP_URL||new URL('ind
 
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const fmt=d=>{if(!d)return '—';const x=new Date(d);return isNaN(x)?'—':x.toLocaleDateString('fr-FR')+' '+x.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})};
 const num=n=>(Number(n)||0).toLocaleString('fr-FR');
-let DOSSIERS=[],STATS=null;
+const fmt=d=>{if(!d)return '—';const x=new Date(d);return isNaN(x)?'—':x.toLocaleDateString('fr-FR')+' '+x.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})};
+const jour=d=>{if(!d)return '—';const x=new Date(d);return isNaN(x)?'—':x.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'})};
+const jours=d=>{const x=new Date(d);return isNaN(x)?null:Math.floor((Date.now()-x)/864e5)};
+const MOIS=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+let DOSSIERS=[],STATS=null,filtreAgence='';
 
-/* Connexion par code reçu par e-mail : même appareil reconnu que dans l'outil, quand les deux
-   pages sont servies par la même adresse de site. */
+/* ---------- états d'un chantier : une seule définition, utilisée partout ---------- */
+const RETARD_JOURS=30;
+function etat(d){
+  if(d.remis_le)return 'remis';
+  if(d.doe_genere_le)return 'edit';
+  return 'cours';
+}
+const enRetard=d=>!d.doe_genere_le&&(jours(d.maj_le)??0)>RETARD_JOURS;
+const ETAT={cours:{t:'En cours',c:'co'},edit:{t:'À remettre',c:'ed'},remis:{t:'Remis',c:'ok'}};
+const COUL={cours:'#E69138',edit:'#1565C0',remis:'#38761D'};
+
+/* ---------- connexion par code reçu par e-mail ----------
+   Même appareil reconnu que dans l'outil, quand les deux pages sont servies
+   par la même adresse de site. */
 const SES_KEY='attila_doe_session',PUBLIC_ACTIONS=['ping','config','agences','demande_code','valide_code'];
 let authCfg=null,gEmailVal='';
 function sesLoad(){try{const x=JSON.parse(localStorage.getItem(SES_KEY)||'null');if(x&&x.jeton&&x.exp>Date.now())return x}catch(e){}return null}
@@ -120,11 +273,13 @@ const authErr=m=>({adresse:"Cette adresse n'est pas acceptée : utilisez votre a
   quota:'Envoi de codes momentanément indisponible.',
   code_faux:'Code incorrect : vérifiez le dernier e-mail reçu.',
   code_expire:'Ce code a expiré : demandez-en un nouveau.'}[m]||'Envoi impossible : '+m);
+
 function connexion(msg){
+  $('#tableau').hidden=true;
   const d=(authCfg&&authCfg.domaines||[])[0]||'attila.fr';
-  $('#state').innerHTML=`<div class="hint ko"><b>Tableau de bord réservé aux équipes ATTILA.</b><br>${esc(msg||'Saisissez votre adresse e-mail professionnelle : vous allez recevoir un code de connexion.')}
-    <div id="gStep1" class="gate"><input type="email" id="gEmail" placeholder="prenom.nom@${esc(d)}" autocomplete="email"><button type="button" class="line" id="gSend">Recevoir mon code</button></div>
-    <div id="gStep2" class="gate" hidden><span>Code à 6 chiffres envoyé à <b id="gTo"></b>, valable 10 minutes.</span><input type="text" id="gCode" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="123 456"><button type="button" class="line" id="gCheck">Valider</button></div>
+  $('#state').innerHTML=`<div class="msg ko"><b>Suivi réservé aux équipes ATTILA.</b><br>${esc(msg||'Saisissez votre adresse professionnelle : vous allez recevoir un code de connexion.')}
+    <div id="gStep1" class="gate"><input type="email" id="gEmail" placeholder="prenom.nom@${esc(d)}" autocomplete="email"><button type="button" class="go" id="gSend">Recevoir mon code</button></div>
+    <div id="gStep2" class="gate" hidden><span>Code à 6 chiffres envoyé à <b id="gTo"></b>, valable 10 minutes.</span><input type="text" id="gCode" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="123 456"><button type="button" class="go" id="gCheck">Valider</button></div>
     <div class="err" id="gErr"></div></div>`;
   const envoyer=async()=>{const e=$('#gEmail').value.trim().toLowerCase();$('#gErr').textContent='';
     try{await call({action:'demande_code',email:e});gEmailVal=e;$('#gTo').textContent=e;$('#gStep1').hidden=true;$('#gStep2').hidden=false;$('#gCode').focus()}
@@ -146,78 +301,260 @@ async function call(body){
 }
 
 async function load(){
-  if(!API){$('#state').innerHTML='<div class="hint ko"><b>À configurer :</b> renseignez API_URL dans ce fichier avec l\'URL /exec du script Apps Script.</div>';return}
+  if(!API){$('#state').innerHTML='<div class="msg ko"><b>À configurer :</b> renseignez API_URL dans ce fichier avec l\'URL /exec du script Apps Script.</div>';return}
   try{const c=await call({action:'config'});authCfg={codeEmail:!!c.codeEmail,domaines:c.domaines||[]}}catch(e){authCfg=null}
   const ses=sesLoad();
   $('#who').hidden=!(authOn()&&ses);$('#whoName').textContent=ses?ses.email:'';
   if(authOn()&&!ses)return connexion();
-  $('#state').innerHTML='<div class="hint">Chargement…</div>';
+  $('#state').innerHTML='<div class="msg">Lecture des chantiers…</div>';
   try{
     const [s,l]=await Promise.all([call({action:'stats'}),call({action:'list',limit:500})]);
     STATS=s;DOSSIERS=l.dossiers||[];
-    $('#state').innerHTML=(authOn()&&s.perimetre)?`<div class="perim"><b>Périmètre :</b> ${esc(s.perimetre)}${s.perimetre==='Tout le réseau'?'':' — les chiffres et la liste ci-dessous ne portent que sur ce périmètre.'}</div>`:'';
-    kpis();mois();agences();dossiers();
+    $('#state').innerHTML='';
+    $('#tableau').hidden=false;
+    const p=$('#perim');
+    if(authOn()&&s.perimetre){p.hidden=false;p.textContent='Périmètre : '+s.perimetre}else p.hidden=true;
+    if(s.perimetre&&s.perimetre!=='Tout le réseau')
+      $('#state').innerHTML=`<div class="msg">Chiffres, carte et liste limités à votre périmètre : <b>${esc(s.perimetre)}</b>.</div>`;
+    chiffres();mois();agences();rendu();localiser();
   }catch(e){
     if(e.message==='session'){sesClear();$('#who').hidden=true;return connexion('Votre connexion a expiré : demandez un nouveau code.')}
-    $('#state').innerHTML=`<div class="hint ko"><b>Lecture impossible :</b> ${esc(e.message)}. Vérifiez que le script est déployé en « accès : tout le monde ».</div>`}
+    $('#tableau').hidden=true;
+    $('#state').innerHTML=`<div class="msg ko"><b>Lecture impossible :</b> ${esc(e.message)}. Vérifiez que le script est déployé en « accès : tout le monde ».</div>`}
 }
 
-function kpis(){
-  const t=STATS.totaux;
-  $('#kpis').innerHTML=[
-    ['Dossiers ouverts',num(t.dossiers)],['DOE générés',num(t.doe)],['Agences utilisatrices',num(t.agences)],
-    ['Dispositifs tracés',num(t.dispositifs)],['Mètres de linéaire',num(Math.round(t.metres))],
-    ['PV de réception signés',num(t.pv)],['Attestations signées',num(t.attestation)],['Fiches de vérification',num(t.fiche)]
-  ].map(([k,v])=>`<div class="kpi"><b>${v}</b><span>${k}</span></div>`).join('');
+/* ---------- la liste filtrée, source unique des quatre affichages ---------- */
+function filtres(){
+  const q=$('#q').value.toLowerCase().trim(),f=$('#filtre').value;
+  return DOSSIERS.filter(d=>{
+    if(filtreAgence&&String(d.agence||'')!==filtreAgence)return false;
+    if(q&&![d.agence,d.client,d.site,d.adresse,d.reference,d.compte].join(' ').toLowerCase().includes(q))return false;
+    if(f==='aclore'&&d.remis_le)return false;
+    if(f==='jamais'&&d.doe_genere_le)return false;
+    if(f==='tard'&&!enRetard(d))return false;
+    if(f==='remis'&&!d.remis_le)return false;
+    if(f==='nopv'&&d.pv_signe==='oui')return false;
+    return true;
+  });
+}
+
+function chiffres(){
+  const t=STATS.totaux,taux=t.doe?Math.round(t.remis/t.doe*100):0;
+  $('#chiffres').innerHTML=`
+    <div class="ch"><b>${taux}&thinsp;%</b><span>des DOE édités sont remis au client — ${num(t.remis)} sur ${num(t.doe)}</span>
+      <div class="jauge"><i style="width:${taux}%"></i></div></div>
+    ${[['Chantiers ouverts',num(t.dossiers)],['DOE édités',num(t.doe)],['Agences actives',num(t.agences)],
+       ['Dispositifs tracés',num(t.dispositifs)],['Mètres posés',num(Math.round(t.metres))],
+       ['PV signés',num(t.pv)],['Fiches de vérif.',num(t.fiche)]]
+      .map(([k,v])=>`<div class="ch"><b>${v}</b><span>${k}</span></div>`).join('')}`;
 }
 
 function mois(){
-  const m=STATS.parMois.slice(-12),max=Math.max(1,...m.map(x=>x.dossiers));
-  $('#mois').innerHTML=m.length?m.map(x=>`<div title="${x.mois} : ${x.dossiers} dossier(s), ${x.doe} DOE">
-    <i class="b" style="height:${x.doe/max*110}px"></i><i style="height:${(x.dossiers-x.doe)/max*110}px"></i>
-    <span>${x.mois.slice(5)}/${x.mois.slice(2,4)}</span></div>`).join('')
-    :'<p class="src">Aucun dossier enregistré pour le moment.</p>';
+  const m=(STATS.parMois||[]).slice(-12);
+  if(!m.length){$('#mois').innerHTML='';$('#moisx').innerHTML='<div class="src">Aucun chantier enregistré pour le moment.</div>';return}
+  const max=Math.max(1,...m.map(x=>x.dossiers));
+  $('#mois').innerHTML=m.map(x=>{
+    const h=v=>Math.max(v?3:0,Math.round(v/max*132));
+    return `<div title="${x.mois} : ${x.dossiers} chantier(s), ${x.doe} DOE édité(s)">
+      <em>${x.dossiers}</em>
+      <i class="b" style="height:${h(x.dossiers-x.doe)}px"></i>
+      <i class="a" style="height:${h(x.doe)}px"></i></div>`}).join('');
+  $('#moisx').innerHTML=m.map(x=>{const mm=+x.mois.slice(5,7);
+    return `<div>${MOIS[mm-1]||x.mois.slice(5)}<br>${x.mois.slice(2,4)}</div>`}).join('');
 }
 
 function agences(){
-  const r=STATS.parAgence,max=Math.max(1,...r.map(x=>x.dossiers));
-  $('#tAgences tbody').innerHTML=r.length?r.map(a=>`<tr>
-    <td>${esc(a.agence)}</td><td class="n">${a.dossiers}</td><td class="n">${a.doe}</td>
-    <td><div class="bar"><div style="width:${a.dossiers?a.doe/a.dossiers*100:0}%"></div></div></td>
+  const r=STATS.parAgence||[];
+  $('#tAgences tbody').innerHTML=r.length?r.map(a=>`<tr class="ag" tabindex="0" data-ag="${esc(a.agence)}" aria-selected="${a.agence===filtreAgence}">
+    <td>${esc(a.agence)}</td><td class="n">${a.dossiers}</td><td class="n">${a.doe}</td><td class="n">${a.remis||0}</td>
+    <td><div class="bar" title="${a.doe} DOE sur ${a.dossiers} chantiers"><i style="width:${a.dossiers?Math.min(100,a.doe/a.dossiers*100):0}%"></i></div></td>
     <td class="n">${a.dispositifs}</td><td class="n">${num(Math.round(a.metres))}</td><td>${fmt(a.dernier)}</td></tr>`).join('')
-    :'<tr><td colspan="7" class="src">Aucune donnée.</td></tr>';
+    :'<tr><td colspan="8" class="src">Aucune donnée pour ce périmètre.</td></tr>';
 }
 
-function dossiers(){
-  const q=$('#q').value.toLowerCase().trim(),f=$('#filtre').value;
-  const rows=DOSSIERS.filter(d=>{
-    const txt=[d.agence,d.client,d.site,d.adresse,d.reference].join(' ').toLowerCase();
-    if(q&&!txt.includes(q))return false;
-    if(f==='doe'&&!d.doe_genere_le)return false;
-    if(f==='cours'&&d.doe_genere_le)return false;
-    if(f==='nosign'&&d.pv_signe==='oui')return false;
-    return true;
-  });
+function rendu(){
+  const rows=filtres();
+  const p=$('#puceAgence');
+  if(filtreAgence){p.hidden=false;$('#puceTxt').textContent=filtreAgence}else p.hidden=true;
+  $('#nbDossiers').textContent=rows.length===DOSSIERS.length
+    ? `${num(rows.length)} chantier(s).`
+    : `${num(rows.length)} chantier(s) affiché(s) sur ${num(DOSSIERS.length)}.`;
+
   $('#tDossiers tbody').innerHTML=rows.length?rows.map(d=>{
+    const e=etat(d),E=ETAT[e],tard=enRetard(d),j=jours(d.maj_le);
     const docs=[d.pv_signe==='oui'&&'PV',d.attestation_signee==='oui'&&'Attest.',d.fiche_verif==='oui'&&'Fiche'].filter(Boolean);
-    return `<tr>
-      <td>${fmt(d.maj_le)}</td><td>${esc(d.agence)||'—'}${d.compte?'<br><span class="src">'+esc(d.compte)+'</span>':''}</td>
+    const ed=d.doe_genere_le
+      ? `Édité le ${jour(d.doe_genere_le)}${Number(d.editions)>1?` <span class="src">(${d.editions} éditions)</span>`:''}`
+        +(d.remis_le?`<br><span class="tag ok">Remis le ${jour(d.remis_le)}</span>`:'')
+      : `<span class="tag co">étape ${d.etape||1} sur 5</span>`;
+    return `<tr${tard?' class="tard"':''}>
+      <td><span class="eta"><span class="dot ${e}"></span>${E.t}</span>${tard?'<br><span class="src" style="color:var(--alert);font-weight:600">rien depuis '+j+' j</span>':''}</td>
+      <td>${jour(d.maj_le)}</td>
+      <td>${esc(d.agence)||'—'}${d.compte?'<br><span class="src">'+esc(d.compte)+'</span>':''}</td>
       <td>${esc(d.client)||'—'}${d.site?'<br><span class="src">'+esc(d.site)+'</span>':''}</td>
-      <td>${esc(d.reference)||'—'}</td><td class="n">${d.nb_dispositifs||0}</td>
-      <td>${docs.length?docs.map(x=>`<span class="tag ok">${x}</span>`).join(' '):'<span class="tag">aucun</span>'}</td>
-      <td>${d.doe_genere_le?'<span class="tag ok">DOE généré</span>':`<span class="tag cours">étape ${d.etape||1}/5</span>`}</td>
-      <td><a href="${APP}?id=${encodeURIComponent(d.id)}" target="_blank" rel="noopener">Reprendre</a>${d.fichier?` · <a href="${d.fichier}" target="_blank" rel="noopener">Données</a>`:''}</td></tr>`}).join('')
-    :'<tr><td colspan="8" class="src">Aucun dossier ne correspond.</td></tr>';
+      <td>${esc(d.reference)||'—'}</td>
+      <td class="n">${d.nb_dispositifs||0}</td>
+      <td>${docs.length?docs.map(x=>`<span class="tag ok">${x}</span>`).join(' '):'<span class="tag">aucune</span>'}</td>
+      <td>${ed}</td>
+      <td><a href="${APP}?id=${encodeURIComponent(d.id)}" target="_blank" rel="noopener">Reprendre</a>${d.fichier?`<br><a href="${esc(d.fichier)}" target="_blank" rel="noopener">Données</a>`:''}</td></tr>`}).join('')
+    :'<tr><td colspan="9" class="src">Aucun chantier ne correspond à cette recherche.</td></tr>';
+
+  todo(rows);majCarte();
 }
 
-$('#q').addEventListener('input',dossiers);
-$('#filtre').addEventListener('change',dossiers);
+function todo(rows){
+  const l=rows.filter(d=>!d.remis_le)
+    .sort((a,b)=>String(a.maj_le).localeCompare(String(b.maj_le)));
+  $('#todoList').innerHTML=l.length?l.slice(0,40).map(d=>{
+    const j=jours(d.maj_le),e=etat(d);
+    return `<li><button type="button" data-voir="${esc(d.id)}">
+      <span class="cli">${esc(d.client||d.site||d.reference||'Chantier sans nom')}</span>
+      <span class="met"><span class="dot ${e}"></span>${ETAT[e].t}${d.agence?' · '+esc(d.agence):''}
+        <span class="${enRetard(d)?'age':''}">${j!=null?j+' j':''}</span></span></button></li>`}).join('')
+    +(l.length>40?`<li class="vide">et ${l.length-40} autre(s).</li>`:'')
+    :'<li class="vide">Rien à clôturer : tous les DOE du périmètre ont été remis.</li>';
+}
+
+/* ================= carte ================= */
+let map=null,couche={},calque=null,marqueurs={},pointsVus=[];
+const GEO_KEY='attila_doe_geo';
+let GEO={};try{GEO=JSON.parse(localStorage.getItem(GEO_KEY)||'{}')}catch(e){GEO={}}
+
+function coord(d){
+  if(d.lat&&d.lon)return [+d.lat,+d.lon];
+  const g=GEO[String(d.adresse||'').trim().toLowerCase()];
+  return g?[g[0],g[1]]:null;
+}
+
+function carte(){
+  if(map||!window.L)return !!map;
+  /* zoomSnap:0 — le cadrage prend la place exacte des chantiers au lieu d'arrondir
+     au niveau de zoom inférieur, ce qui laissait la France minuscule au centre. */
+  map=L.map('map',{zoomControl:true,scrollWheelZoom:true,zoomSnap:0,zoomDelta:1}).setView([46.7,2.4],5.4);
+  couche.plan=L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    {maxZoom:19,subdomains:'abcd',attribution:'© OpenStreetMap, © CARTO'});
+  couche.sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    {maxZoom:19,attribution:'Esri World Imagery'});
+  couche.plan.addTo(map);
+  calque=L.layerGroup().addTo(map);
+  /* La carte naît dans un bloc qui vient d'être affiché : sa taille réelle n'est
+     connue qu'au tracé suivant. On recadre dès qu'elle change. */
+  if(window.ResizeObserver)new ResizeObserver(()=>cadrer()).observe($('.mapwrap'));
+  return true;
+}
+
+function cadrer(){
+  if(!map)return;
+  map.invalidateSize(false);
+  if(pointsVus.length===1)map.setView(pointsVus[0],15);
+  else if(pointsVus.length)map.fitBounds(L.latLngBounds(pointsVus),{padding:[30,30],animate:false});
+}
+
+function fond(q){
+  if(!map)return;
+  map.removeLayer(q==='sat'?couche.plan:couche.sat);
+  (q==='sat'?couche.sat:couche.plan).addTo(map);
+  $('#btnPlan').setAttribute('aria-pressed',String(q!=='sat'));
+  $('#btnSat').setAttribute('aria-pressed',String(q==='sat'));
+}
+
+function majCarte(){
+  if(!window.L){
+    $('#mapvide').hidden=false;
+    $('#mapvide').textContent='La carte n\'a pas pu être chargée : vérifiez la connexion, le reste du suivi reste utilisable.';
+    return}
+  if(!carte())return;
+  const rows=filtres(),pts=[];
+  calque.clearLayers();marqueurs={};
+  let n={cours:0,edit:0,remis:0},sans=0;
+  rows.forEach(d=>{
+    const e=etat(d);n[e]++;
+    const c=coord(d);
+    if(!c){sans++;return}
+    const r=6+Math.min(5,Math.round((Number(d.nb_dispositifs)||0)/2));
+    if(enRetard(d))L.circleMarker(c,{radius:r+6,stroke:false,fillColor:'#9B1B14',fillOpacity:.18,interactive:false}).addTo(calque);
+    const m=L.circleMarker(c,{radius:r,color:'#fff',weight:2,fillColor:COUL[e],fillOpacity:1});
+    m.bindPopup(popup(d),{maxWidth:280});
+    m.addTo(calque);marqueurs[d.id]=m;pts.push(c);
+  });
+  const total=rows.length;
+  $('#legend').hidden=!total;
+  $('#legend').innerHTML=`<b>${num(total)} chantier${total>1?'s':''}${filtreAgence?' — '+esc(filtreAgence):''}</b>
+    <div><span class="dot cours"></span>En cours <span class="n">${n.cours}</span></div>
+    <div><span class="dot edit"></span>DOE à remettre <span class="n">${n.edit}</span></div>
+    <div><span class="dot remis"></span>Remis au client <span class="n">${n.remis}</span></div>`;
+  $('#mapvide').hidden=!!pts.length;
+  if(!pts.length)$('#mapvide').textContent=total
+    ? 'Aucun de ces chantiers n\'a de position connue. Renseignez l\'adresse à l\'étape 1 de l\'application : elle les place ici.'
+    : 'Aucun chantier à afficher.';
+  pointsVus=pts;
+  cadrer();requestAnimationFrame(cadrer);
+  const g=$('#geonote');
+  if(sans){g.hidden=false;g.textContent=`${sans} chantier(s) sans position : adresse absente ou introuvable.`}else g.hidden=true;
+}
+
+function popup(d){
+  const e=etat(d),E=ETAT[e];
+  return `<div style="font:inherit;min-width:190px">
+    <div style="font-weight:700;font-size:15px">${esc(d.client||d.site||'Chantier')}</div>
+    ${d.site&&d.client?`<div style="color:#5E6770;font-size:13px">${esc(d.site)}</div>`:''}
+    <div style="color:#5E6770;font-size:13px;margin-bottom:6px">${esc(d.adresse||'')}</div>
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+      <span class="dot ${e}"></span><b>${E.t}</b></div>
+    <div style="font-size:13px;color:#5E6770">${esc(d.agence||'')}${d.reference?' — réf. '+esc(d.reference):''}<br>
+      ${d.nb_dispositifs||0} dispositif(s), ${num(Math.round(d.metres||0))} m<br>
+      ${d.doe_genere_le?'DOE édité le '+jour(d.doe_genere_le):'DOE non édité'}${d.remis_le?', remis le '+jour(d.remis_le):''}</div>
+    <div style="margin-top:8px"><a href="${APP}?id=${encodeURIComponent(d.id)}" target="_blank" rel="noopener">Reprendre ce chantier</a></div></div>`;
+}
+
+/* Les chantiers enregistrés avant l'ajout des coordonnées n'ont qu'une adresse :
+   on la localise une fois, puis on garde le résultat sur l'appareil. */
+async function localiser(){
+  const aFaire=DOSSIERS.filter(d=>!coord(d)&&String(d.adresse||'').trim().length>7).slice(0,60);
+  if(!aFaire.length)return;
+  let trouve=0;
+  for(const d of aFaire){
+    const cle=String(d.adresse).trim().toLowerCase();
+    try{
+      const r=await fetch(`https://data.geopf.fr/geocodage/search?q=${encodeURIComponent(d.adresse)}&limit=1`);
+      const j=await r.json(),f=(j.features||[])[0];
+      if(f&&f.geometry){GEO[cle]=[f.geometry.coordinates[1],f.geometry.coordinates[0]];trouve++}
+      else GEO[cle]=null;
+    }catch(e){/* réseau : on retentera au prochain chargement */}
+    await new Promise(r=>setTimeout(r,120));
+  }
+  try{localStorage.setItem(GEO_KEY,JSON.stringify(GEO))}catch(e){}
+  if(trouve)majCarte();
+}
+
+/* ================= interactions ================= */
+$('#q').addEventListener('input',rendu);
+$('#filtre').addEventListener('change',rendu);
+$('#puceX').onclick=()=>{filtreAgence='';agences();rendu()};
+$('#tAgences').addEventListener('click',e=>{
+  const tr=e.target.closest('tr.ag');if(!tr)return;
+  filtreAgence=filtreAgence===tr.dataset.ag?'':tr.dataset.ag;agences();rendu()});
+$('#tAgences').addEventListener('keydown',e=>{
+  if(e.key!=='Enter'&&e.key!==' ')return;
+  const tr=e.target.closest('tr.ag');if(!tr)return;e.preventDefault();
+  filtreAgence=filtreAgence===tr.dataset.ag?'':tr.dataset.ag;agences();rendu()});
+$('#todoList').addEventListener('click',e=>{
+  const b=e.target.closest('[data-voir]');if(!b)return;
+  const m=marqueurs[b.dataset.voir];
+  if(m&&map){map.setView(m.getLatLng(),16);m.openPopup();$('.mapwrap').scrollIntoView({behavior:'smooth',block:'nearest'})}
+  else{$('#q').value=b.closest('li').querySelector('.cli').textContent;rendu()}});
+$('#btnPlan').onclick=()=>fond('plan');
+$('#btnSat').onclick=()=>fond('sat');
 $('#btnRefresh').onclick=load;
 $('#btnLogout').onclick=()=>{sesClear();$('#who').hidden=true;load()};
 $('#btnCsv').onclick=()=>{
-  if(!DOSSIERS.length)return;
-  const cols=['maj_le','agence','compte','client','site','adresse','reference','etape','nb_dispositifs','metres','pv_signe','attestation_signee','fiche_verif','doe_genere_le'];
-  const csv=[cols.join(';'),...DOSSIERS.map(d=>cols.map(c=>`"${String(d[c]??'').replace(/"/g,'""')}"`).join(';'))].join('\n');
+  const rows=filtres();
+  if(!rows.length)return;
+  const cols=['maj_le','agence','compte','client','site','adresse','lat','lon','reference','etape',
+              'nb_dispositifs','metres','pv_signe','attestation_signee','fiche_verif',
+              'doe_genere_le','editions','remis_le'];
+  const ligne=d=>cols.map(c=>`"${String(d[c]??'').replace(/"/g,'""')}"`).join(';')+';"'+ETAT[etat(d)].t+'";"'+(enRetard(d)?'oui':'')+'"';
+  const csv=[cols.join(';')+';etat;en_retard',...rows.map(ligne)].join('\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}));
   a.download='doe_securisation_'+new Date().toISOString().slice(0,10)+'.csv';document.body.appendChild(a);a.click();a.remove();
 };
