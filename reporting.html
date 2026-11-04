@@ -40,6 +40,13 @@ button.line{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
 .tag.cours{background:#FDF4EA;color:#B26A1D}
 .hint{font-size:14px;padding:10px 12px;border-radius:8px;background:#F4F6F7;border-left:4px solid #1565C0;margin-bottom:12px}
 .hint.ko{border-left-color:var(--ko);background:#FBEAEA}
+.who{display:flex;align-items:center;gap:8px;font-size:14px;color:#fff}
+.gate{max-width:470px;display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.gate input{font:inherit;font-size:16px;padding:9px 11px;border:1.5px solid var(--line);border-radius:8px}
+.gate #gCode{font-size:22px;letter-spacing:4px;max-width:190px}
+.gate button{align-self:flex-start}
+.gate .err{color:var(--ko);font-size:14px;min-height:18px}
+.perim{background:#F4F6F7;border-left:4px solid #1565C0;border-radius:8px;padding:9px 12px;font-size:14px;margin-bottom:12px}
 .mois{display:flex;align-items:flex-end;gap:6px;height:150px;margin-top:10px}
 .mois div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px;font-size:11px;color:var(--mute)}
 .mois i{display:block;width:100%;background:var(--red);border-radius:4px 4px 0 0;min-height:2px}
@@ -52,6 +59,7 @@ button.line{background:#fff;color:var(--ink);border:1.5px solid var(--line)}
   <h1>DOE sécurisation de toiture<small>Suivi d'usage du réseau ATTILA</small></h1>
   <button class="line" id="btnRefresh" type="button">Actualiser</button>
   <button class="line" id="btnCsv" type="button">Export CSV</button>
+  <span class="who" id="who" hidden><span id="whoName"></span><button class="line" id="btnLogout" type="button">Déconnexion</button></span>
 </div></header>
 <main>
   <div id="state"></div>
@@ -100,7 +108,38 @@ const fmt=d=>{if(!d)return '—';const x=new Date(d);return isNaN(x)?'—':x.toL
 const num=n=>(Number(n)||0).toLocaleString('fr-FR');
 let DOSSIERS=[],STATS=null;
 
+/* Connexion par code reçu par e-mail : même appareil reconnu que dans l'outil, quand les deux
+   pages sont servies par la même adresse de site. */
+const SES_KEY='attila_doe_session',PUBLIC_ACTIONS=['ping','config','demande_code','valide_code'];
+let authCfg=null,gEmailVal='';
+function sesLoad(){try{const x=JSON.parse(localStorage.getItem(SES_KEY)||'null');if(x&&x.jeton&&x.exp>Date.now())return x}catch(e){}return null}
+function sesClear(){try{localStorage.removeItem(SES_KEY)}catch(e){}}
+const authOn=()=>!!(authCfg&&authCfg.codeEmail);
+const authErr=m=>({adresse:"Cette adresse n'est pas acceptée : utilisez votre adresse professionnelle ATTILA.",
+  trop:'Trop de demandes de code : réessayez dans une heure.',
+  quota:'Envoi de codes momentanément indisponible.',
+  code_faux:'Code incorrect : vérifiez le dernier e-mail reçu.',
+  code_expire:'Ce code a expiré : demandez-en un nouveau.'}[m]||'Envoi impossible : '+m);
+function connexion(msg){
+  const d=(authCfg&&authCfg.domaines||[])[0]||'attila.fr';
+  $('#state').innerHTML=`<div class="hint ko"><b>Tableau de bord réservé aux équipes ATTILA.</b><br>${esc(msg||'Saisissez votre adresse e-mail professionnelle : vous allez recevoir un code de connexion.')}
+    <div id="gStep1" class="gate"><input type="email" id="gEmail" placeholder="prenom.nom@${esc(d)}" autocomplete="email"><button type="button" class="line" id="gSend">Recevoir mon code</button></div>
+    <div id="gStep2" class="gate" hidden><span>Code à 6 chiffres envoyé à <b id="gTo"></b>, valable 10 minutes.</span><input type="text" id="gCode" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="123 456"><button type="button" class="line" id="gCheck">Valider</button></div>
+    <div class="err" id="gErr"></div></div>`;
+  const envoyer=async()=>{const e=$('#gEmail').value.trim().toLowerCase();$('#gErr').textContent='';
+    try{await call({action:'demande_code',email:e});gEmailVal=e;$('#gTo').textContent=e;$('#gStep1').hidden=true;$('#gStep2').hidden=false;$('#gCode').focus()}
+    catch(x){$('#gErr').textContent=authErr(x.message)}};
+  const valider=async()=>{$('#gErr').textContent='';
+    try{const r=await call({action:'valide_code',email:gEmailVal,code:$('#gCode').value.replace(/\D/g,''),appareil:navigator.userAgent});
+      localStorage.setItem(SES_KEY,JSON.stringify({jeton:r.jeton,email:r.email,exp:r.exp}));load()}
+    catch(x){$('#gErr').textContent=authErr(x.message)}};
+  $('#gSend').onclick=envoyer;$('#gEmail').addEventListener('keydown',e=>{if(e.key==='Enter')envoyer()});
+  $('#gCheck').onclick=valider;$('#gCode').addEventListener('keydown',e=>{if(e.key==='Enter')valider()});
+  $('#gEmail').focus();
+}
+
 async function call(body){
+  if(authOn()&&!PUBLIC_ACTIONS.includes(body.action)){const x=sesLoad();if(!x)throw new Error('session');body.jeton=x.jeton}
   const r=await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});
   if(!r.ok)throw new Error('HTTP '+r.status);
   const j=await r.json();if(j.ok===false)throw new Error(j.error||'refus du serveur');return j;
@@ -108,12 +147,19 @@ async function call(body){
 
 async function load(){
   if(!API){$('#state').innerHTML='<div class="hint ko"><b>À configurer :</b> renseignez API_URL dans ce fichier avec l\'URL /exec du script Apps Script.</div>';return}
+  try{const c=await call({action:'config'});authCfg={codeEmail:!!c.codeEmail,domaines:c.domaines||[]}}catch(e){authCfg=null}
+  const ses=sesLoad();
+  $('#who').hidden=!(authOn()&&ses);$('#whoName').textContent=ses?ses.email:'';
+  if(authOn()&&!ses)return connexion();
   $('#state').innerHTML='<div class="hint">Chargement…</div>';
   try{
     const [s,l]=await Promise.all([call({action:'stats'}),call({action:'list',limit:500})]);
-    STATS=s;DOSSIERS=l.dossiers||[];$('#state').innerHTML='';
+    STATS=s;DOSSIERS=l.dossiers||[];
+    $('#state').innerHTML=(authOn()&&s.perimetre)?`<div class="perim"><b>Périmètre :</b> ${esc(s.perimetre)}${s.perimetre==='Tout le réseau'?'':' — les chiffres et la liste ci-dessous ne portent que sur ce périmètre.'}</div>`:'';
     kpis();mois();agences();dossiers();
-  }catch(e){$('#state').innerHTML=`<div class="hint ko"><b>Lecture impossible :</b> ${esc(e.message)}. Vérifiez que le script est déployé en « accès : tout le monde ».</div>`}
+  }catch(e){
+    if(e.message==='session'){sesClear();$('#who').hidden=true;return connexion('Votre connexion a expiré : demandez un nouveau code.')}
+    $('#state').innerHTML=`<div class="hint ko"><b>Lecture impossible :</b> ${esc(e.message)}. Vérifiez que le script est déployé en « accès : tout le monde ».</div>`}
 }
 
 function kpis(){
@@ -155,7 +201,7 @@ function dossiers(){
   $('#tDossiers tbody').innerHTML=rows.length?rows.map(d=>{
     const docs=[d.pv_signe==='oui'&&'PV',d.attestation_signee==='oui'&&'Attest.',d.fiche_verif==='oui'&&'Fiche'].filter(Boolean);
     return `<tr>
-      <td>${fmt(d.maj_le)}</td><td>${esc(d.agence)||'—'}</td>
+      <td>${fmt(d.maj_le)}</td><td>${esc(d.agence)||'—'}${d.compte?'<br><span class="src">'+esc(d.compte)+'</span>':''}</td>
       <td>${esc(d.client)||'—'}${d.site?'<br><span class="src">'+esc(d.site)+'</span>':''}</td>
       <td>${esc(d.reference)||'—'}</td><td class="n">${d.nb_dispositifs||0}</td>
       <td>${docs.length?docs.map(x=>`<span class="tag ok">${x}</span>`).join(' '):'<span class="tag">aucun</span>'}</td>
@@ -167,9 +213,10 @@ function dossiers(){
 $('#q').addEventListener('input',dossiers);
 $('#filtre').addEventListener('change',dossiers);
 $('#btnRefresh').onclick=load;
+$('#btnLogout').onclick=()=>{sesClear();$('#who').hidden=true;load()};
 $('#btnCsv').onclick=()=>{
   if(!DOSSIERS.length)return;
-  const cols=['maj_le','agence','client','site','adresse','reference','etape','nb_dispositifs','metres','pv_signe','attestation_signee','fiche_verif','doe_genere_le'];
+  const cols=['maj_le','agence','compte','client','site','adresse','reference','etape','nb_dispositifs','metres','pv_signe','attestation_signee','fiche_verif','doe_genere_le'];
   const csv=[cols.join(';'),...DOSSIERS.map(d=>cols.map(c=>`"${String(d[c]??'').replace(/"/g,'""')}"`).join(';'))].join('\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}));
   a.download='doe_securisation_'+new Date().toISOString().slice(0,10)+'.csv';document.body.appendChild(a);a.click();a.remove();
